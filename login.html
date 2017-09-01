@@ -162,6 +162,8 @@
                     $("#loginAccount").val(account);
                     readingTime=(new Date()).getMilliseconds();
                     console.log(readingTime);
+                }).catch(function(e){
+                    $('#sumitBtn').removeAttr('disabled');
                 });
               }
 
@@ -191,6 +193,7 @@
                 isPost=true;
                 var classname=userInfo.classname;
                 var account = $('#account').val();
+                var access_token=oauthObj.access_token;
                 var bookNo = $('#bookNo').val();
                 var URLs="http://210.71.197.149:8081/EPubRecordL/saveLogin";
                 $.ajax({
