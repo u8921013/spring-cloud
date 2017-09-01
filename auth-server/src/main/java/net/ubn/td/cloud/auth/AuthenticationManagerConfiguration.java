@@ -32,8 +32,8 @@ public class AuthenticationManagerConfiguration extends GlobalAuthenticationConf
 			builder.withUser(data.getStudentNumber()).password(data.getPassword()).roles("USER");
 		}
 
-		builder.withUser("min").password("min").roles("USER").and().withUser("cs").password("password").roles("USER");
-		builder.withUser("CSLin").password("1").roles("USER");
+//		builder.withUser("min").password("min").roles("USER").and().withUser("cs").password("password").roles("USER");
+//		builder.withUser("CSLin").password("1").roles("USER");
 	}
 
 }
