@@ -30,11 +30,11 @@
                 <div class="body bg-gray" >
                     <div class="form-group">
                     	<label for="inputA" class="control-label">帳號</label>
-                        <input type="text" id="account" name="account" class="form-control" placeholder="請填入帳號" value="BB1051112" />
+                        <input type="text" id="account" name="account" class="form-control" placeholder="請填入帳號" value="" />
                     </div>
                     <div class="form-group">
                     	<label for="inputP" class="control-label">密碼</label>
-                        <input type="password" id="password" name="password" class="form-control" placeholder="請填入密碼" value="fE4L" />
+                        <input type="password" id="password" name="password" class="form-control" placeholder="請填入密碼" value="" />
                     </div>         
                 </div>
                 <div class="footer">                                                               
@@ -201,7 +201,7 @@
                     type:"POST",
                     success: function(){
                         console.log("postLoginRecord success");
-                        location.href=bookurl+"&token="+access_token+"&readingTime="+readingTime;
+                        location.href=bookUrl+"&token="+access_token+"&readingTime="+readingTime;
                     },
                     error:function(xhr, ajaxOptions, thrownError){ 
                         alert(xhr.status); 
