@@ -4,7 +4,7 @@ public class AccountDTO {
 	
 	private String studentNumber;
 	private String password;
-	private String classname;
+	private String className;
 	
 	public String getStudentNumber() {
 		return studentNumber;
@@ -18,15 +18,15 @@ public class AccountDTO {
 	public void setPassword(String password) {
 		this.password = password;
 	}
-	public String getClassname() {
-		return classname;
+	public String getClassName() {
+		return className;
 	}
-	public void setClassname(String classname) {
-		this.classname = classname;
+	public void setClassName(String className) {
+		this.className = className;
 	}
 	@Override
 	public String toString() {
-		return "AccountDTO [studentNumber=" + studentNumber + ", password=" + password + ", classname=" + classname
+		return "AccountDTO [studentNumber=" + studentNumber + ", password=" + password + ", className=" + className
 				+ "]";
 	}
 	
