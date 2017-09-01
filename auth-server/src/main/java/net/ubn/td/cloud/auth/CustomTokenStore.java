@@ -28,7 +28,6 @@ public class CustomTokenStore extends InMemoryTokenStore {
 	@Override
 	public OAuth2AccessToken getAccessToken(OAuth2Authentication authentication) {
 		String key = authenticationKeyGenerator.extractKey(authentication);
-		System.out.println("key="+key+"authenticationKeyGenerator="+authenticationKeyGenerator.getClass());
 		return super.getAccessToken(authentication);
 	}
 }

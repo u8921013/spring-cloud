@@ -6,7 +6,7 @@ server:
   port: 8888
 auth:
   data:
-    path: /Users/Lendy/Downloads/studentList.js
+    path: /Users/Lendy/Documents/springcloud-git/auth-server/src/main/Docker/studentList.js
 ---
 
 spring:
