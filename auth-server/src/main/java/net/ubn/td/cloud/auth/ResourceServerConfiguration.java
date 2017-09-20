@@ -32,6 +32,7 @@ public class ResourceServerConfiguration extends ResourceServerConfigurerAdapter
          .antMatchers("/testAdd") 
          .antMatchers("/userInfo")
          .antMatchers("/bookInfo/**")
+         .antMatchers("/getFriends")
          .and()
          .authorizeRequests()
          .antMatchers("/testAdd").access("#oauth2.hasScope('read')")

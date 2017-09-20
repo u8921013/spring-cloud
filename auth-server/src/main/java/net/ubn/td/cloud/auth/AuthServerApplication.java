@@ -3,6 +3,7 @@ package net.ubn.td.cloud.auth;
 import java.io.File;
 import java.security.Principal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import net.ubn.td.cloud.auth.dto.AccountDTO;
 import net.ubn.td.cloud.auth.dto.BookInfo;
 import net.ubn.td.cloud.auth.dto.ReturnAccountDTO;
+import net.ubn.td.cloud.auth.dto.ReturnFriendDTO;
 
 @SpringBootApplication
 @EnableAuthorizationServer
@@ -54,6 +56,41 @@ public class AuthServerApplication {
 		returnDTO.setStudentNumber(accountDTO.getStudentNumber());
 		returnDTO.setClassName(accountDTO.getClassName());
 		returnDTO.setReadingTime(System.currentTimeMillis());
+		return returnDTO;
+//		return user;
+	}
+	
+	@RequestMapping("/getFriends")
+	public ReturnFriendDTO getFriends(Principal user) {
+		AccountDTO accountDTO=userInfos().get(user.getName());
+		
+				 
+		
+	   //假設狀況
+	   //cs有三個朋友 min 1234 kevin
+	   //kevin有二個朋友 1234 cs 
+	   //min有1個朋友 cs
+       //1234有2個朋友 cs kevin				           
+				 
+		ReturnFriendDTO returnDTO=new ReturnFriendDTO();
+		returnDTO.setStudentNumber(accountDTO.getStudentNumber());
+		switch(accountDTO.getStudentNumber()){
+		case "cs":
+			returnDTO.setFriends(Arrays.asList(new String[]{"kevin","min","1234"}));
+			break;
+		case "kevin":
+			returnDTO.setFriends(Arrays.asList(new String[]{"1234","cs"}));
+			break;
+		case "min":
+			returnDTO.setFriends(Arrays.asList(new String[]{"cs"}));
+			break;
+		case "1234":
+			returnDTO.setFriends(Arrays.asList(new String[]{"kevin","cs"}));
+			break;
+		}
+		
+		
+		
 		return returnDTO;
 //		return user;
 	}
