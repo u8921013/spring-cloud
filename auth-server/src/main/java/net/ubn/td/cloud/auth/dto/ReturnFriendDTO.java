@@ -5,6 +5,7 @@ import java.util.List;
 public class ReturnFriendDTO {
 	private String studentNumber;
 	private List<String> friends;
+	private List<RoomDTO> rooms;
 
 	public String getStudentNumber() {
 		return studentNumber;
@@ -21,4 +22,13 @@ public class ReturnFriendDTO {
 	public void setFriends(List<String> friends) {
 		this.friends = friends;
 	}
+
+	public List<RoomDTO> getRooms() {
+		return rooms;
+	}
+
+	public void setRooms(List<RoomDTO> rooms) {
+		this.rooms = rooms;
+	}
+	
 }
