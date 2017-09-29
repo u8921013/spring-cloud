@@ -1,6 +1,6 @@
 [{'studentNumber':'min','password':'123','className':'eyes'},
 {'studentNumber':'1234','password':'1234','className':'tinatsai'},
-{'studentNumber':'cs','password':'cs','className':'eyes'},
+{'studentNumber':'cs','password':'cs','className':'tinatsai'},
 {'studentNumber':'kevin','password':'111','className':'tinatsai'},
 {'studentNumber':'4130481','password':'o010'},
 {'studentNumber':'5130303','password':'D2oU'},
@@ -76,4 +76,6 @@
 {'studentNumber':'5131554','password':'8U9D'},
 {'studentNumber':'5131705','password':'wo6L'},
 {'studentNumber':'5131793','password':'Oe2c'},
-{'studentNumber':'5132416','password':'Ll9S'}]
+{'studentNumber':'5132416','password':'Ll9S'},
+{'studentNumber':'5133092','password':'x1Gi'},
+{'studentNumber':'5131066','password':'rs0D'}]
