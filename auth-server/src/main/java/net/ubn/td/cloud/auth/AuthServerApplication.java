@@ -27,10 +27,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import net.ubn.td.cloud.auth.dto.AccountDTO;
 import net.ubn.td.cloud.auth.dto.BookInfo;
+import net.ubn.td.cloud.auth.dto.FriendDTO;
 import net.ubn.td.cloud.auth.dto.ReturnAccountDTO;
 import net.ubn.td.cloud.auth.dto.ReturnDTO;
 import net.ubn.td.cloud.auth.dto.ReturnFriendDTO;
+import net.ubn.td.cloud.auth.dto.ReturnRoomDTO;
 import net.ubn.td.cloud.auth.dto.RoomDTO;
+import net.ubn.td.cloud.auth.dto.UserDTO;
 
 @SpringBootApplication
 @EnableAuthorizationServer
@@ -69,49 +72,182 @@ public class AuthServerApplication {
 		// return user;
 	}
 
+	@RequestMapping("/getRoomInfo/{roomId}")
+	public ReturnRoomDTO getRoomInfo(Principal user, @PathVariable(value = "roomId") String roomId) {
+		logger.debug("call getRoomInfo");
+		AccountDTO accountDTO = userInfos().get(user.getName());
+
+		ReturnRoomDTO returnDTO = new ReturnRoomDTO();
+		
+		returnDTO.setId(roomId);
+		switch(roomId){
+		case "cs_12345678":
+
+			returnDTO.setName("三人小組會議");
+			break;
+		case "cs_87654321":
+			returnDTO.setName("四人小組會議");
+			break;
+		}
+
+		List<UserDTO> userDTOList=new ArrayList<UserDTO>();
+		
+		UserDTO userDTO1=new UserDTO();
+		userDTO1.setImg("http://localhost:8080/chatroom/img/man01-100x100.jpg");
+		userDTO1.setName("cs");
+		userDTO1.setStudentNumber("cs");
+		userDTOList.add(userDTO1);
+		
+		
+		UserDTO userDTO2=new UserDTO();
+		userDTO2.setImg("http://localhost:8080/chatroom/img/man02-100x100.jpg");
+		userDTO2.setName("kevin");
+		userDTO2.setStudentNumber("kevin");
+		userDTOList.add(userDTO2);
+		
+		UserDTO userDTO3=new UserDTO();
+		userDTO3.setImg("http://localhost:8080/chatroom/img/man03-100x100.jpg");
+		userDTO3.setName("min");
+		userDTO3.setStudentNumber("min");
+		userDTOList.add(userDTO3);
+		
+		UserDTO userDTO4=new UserDTO();
+		userDTO4.setImg("http://localhost:8080/chatroom/img/man04-100x100.jpg");
+		userDTO4.setName("1234");
+		userDTO4.setStudentNumber("1234");
+		userDTOList.add(userDTO4);
+		
+		returnDTO.setMembers(userDTOList);
+		return returnDTO;
+		// return user;
+	}
+
+	@RequestMapping("/getUserInfo")
+	public ReturnFriendDTO getLoginUserData(Principal user) {
+		logger.debug("call getFriends");
+		AccountDTO accountDTO = userInfos().get(user.getName());
+
+		// 假設狀況
+		// cs有三個朋友 min 1234 kevin man01-100x100.jpg
+		// kevin有二個朋友 1234 cs man02-100x100.jpg
+		// min有1個朋友 cs man03-100x100.jpg
+		// 1234有2個朋友 cs kevin man04-100x100.jpg
+
+		ReturnFriendDTO returnDTO = new ReturnFriendDTO();
+		returnDTO.setStudentNumber(accountDTO.getStudentNumber());
+		returnDTO.setClassname(accountDTO.getClassName());
+		switch (accountDTO.getStudentNumber()) {
+		case "cs":
+			returnDTO.setImg("http://localhost:8080/chatroom/img/man01-100x100.jpg");
+			returnDTO.setFriends(Arrays.asList(new FriendDTO[] {
+					FriendDTO.createBuilder("kevin", "kevin", "http://localhost:8080/chatroom/img/man02-100x100.jpg")
+							.getDTO(),
+					FriendDTO.createBuilder("min", "min", "http://localhost:8080/chatroom/img/man03-100x100.jpg").getDTO(),
+					FriendDTO.createBuilder("1234", "1234", "http://localhost:8080/chatroom/img/man04-100x100.jpg")
+							.getDTO() }));
+			break;
+		case "kevin":
+			returnDTO.setImg("http://localhost:8080/chatroom/img/man02-100x100.jpg");
+			returnDTO.setFriends(Arrays.asList(new FriendDTO[] {
+					FriendDTO.createBuilder("cs", "cs", "http://localhost:8080/chatroom/img/man01-100x100.jpg").getDTO(),
+					FriendDTO.createBuilder("1234", "1234", "http://localhost:8080/chatroom/img/man04-100x100.jpg")
+							.getDTO() }));
+			break;
+		case "min":
+			returnDTO.setImg("http://localhost:8080/chatroom/img/man03-100x100.jpg");
+			returnDTO.setFriends(Arrays.asList(new FriendDTO[] { FriendDTO
+					.createBuilder("cs", "cs", "http://localhost:8080/chatroom/img/man01-100x100.jpg").getDTO() }));
+			break;
+		case "1234":
+			returnDTO.setImg("http://localhost:8080/chatroom/man04-100x100.jpg");
+			returnDTO.setFriends(Arrays.asList(new FriendDTO[] {
+					FriendDTO.createBuilder("cs", "cs", "http://localhost:8080/chatroom/img/man01-100x100.jpg").getDTO(),
+					FriendDTO.createBuilder("kevin", "kevin", "http://localhost:8080/chatroom/img/man02-100x100.jpg")
+							.getDTO() }));
+			break;
+		}
+
+		RoomDTO roomDTO = new RoomDTO();
+		roomDTO.setId("cs_12345678");
+		roomDTO.setName("三人小組會議");
+
+		RoomDTO roomDTO1 = new RoomDTO();
+		roomDTO1.setId("cs_87654321");
+		roomDTO1.setName("四人小組會議");
+		returnDTO.setRooms(Arrays.asList(new RoomDTO[] { roomDTO, roomDTO1 }));
+		return returnDTO;
+		// return user;
+	}
+
 	@RequestMapping("/getFriends")
 	public ReturnFriendDTO getFriends(Principal user) {
 		logger.debug("call getFriends");
 		AccountDTO accountDTO = userInfos().get(user.getName());
 
 		// 假設狀況
-		// cs有三個朋友 min 1234 kevin
-		// kevin有二個朋友 1234 cs
-		// min有1個朋友 cs
-		// 1234有2個朋友 cs kevin
+		// cs有三個朋友 min 1234 kevin man01-100x100.jpg
+		// kevin有二個朋友 1234 cs man02-100x100.jpg
+		// min有1個朋友 cs man03-100x100.jpg
+		// 1234有2個朋友 cs kevin man04-100x100.jpg
 
 		ReturnFriendDTO returnDTO = new ReturnFriendDTO();
 		returnDTO.setStudentNumber(accountDTO.getStudentNumber());
+		returnDTO.setClassname(accountDTO.getClassName());
 		switch (accountDTO.getStudentNumber()) {
 		case "cs":
-			returnDTO.setFriends(Arrays.asList(new String[] { "kevin", "min", "1234" }));
+			returnDTO.setImg("http://localhost:8080/chatroom/man01-100x100.jpg");
+			returnDTO.setFriends(Arrays.asList(new FriendDTO[] {
+					FriendDTO.createBuilder("kevin", "kevin", "http://localhost:8080/chatroom/man02-100x100.jpg")
+							.getDTO(),
+					FriendDTO.createBuilder("min", "min", "http://localhost:8080/chatroom/man03-100x100.jpg").getDTO(),
+					FriendDTO.createBuilder("1234", "1234", "http://localhost:8080/chatroom/man04-100x100.jpg")
+							.getDTO() }));
 			break;
 		case "kevin":
-			returnDTO.setFriends(Arrays.asList(new String[] { "1234", "cs" }));
+			returnDTO.setImg("http://localhost:8080/chatroom/man02-100x100.jpg");
+			returnDTO.setFriends(Arrays.asList(new FriendDTO[] {
+					FriendDTO.createBuilder("cs", "cs", "http://localhost:8080/chatroom/man01-100x100.jpg").getDTO(),
+					FriendDTO.createBuilder("1234", "1234", "http://localhost:8080/chatroom/man04-100x100.jpg")
+							.getDTO() }));
 			break;
 		case "min":
-			returnDTO.setFriends(Arrays.asList(new String[] { "cs" }));
+			returnDTO.setImg("http://localhost:8080/chatroom/man03-100x100.jpg");
+			returnDTO.setFriends(Arrays.asList(new FriendDTO[] { FriendDTO
+					.createBuilder("cs", "cs", "http://localhost:8080/chatroom/man01-100x100.jpg").getDTO() }));
 			break;
 		case "1234":
-			returnDTO.setFriends(Arrays.asList(new String[] { "kevin", "cs" }));
+			returnDTO.setImg("http://localhost:8080/chatroom/man04-100x100.jpg");
+			returnDTO.setFriends(Arrays.asList(new FriendDTO[] {
+					FriendDTO.createBuilder("cs", "cs", "http://localhost:8080/chatroom/man01-100x100.jpg").getDTO(),
+					FriendDTO.createBuilder("kevin", "kevin", "http://localhost:8080/chatroom/man02-100x100.jpg")
+							.getDTO() }));
 			break;
 		}
 
-		RoomDTO roomDTO=new RoomDTO();
+		RoomDTO roomDTO = new RoomDTO();
 		roomDTO.setId("cs_12345678");
 		roomDTO.setName("三人小組會議");
-		
-		RoomDTO roomDTO1=new RoomDTO();
+
+		RoomDTO roomDTO1 = new RoomDTO();
 		roomDTO1.setId("cs_87654321");
 		roomDTO1.setName("四人小組會議");
-		returnDTO.setRooms(Arrays.asList(new RoomDTO[] {roomDTO,roomDTO1 }));
+		returnDTO.setRooms(Arrays.asList(new RoomDTO[] { roomDTO, roomDTO1 }));
 		return returnDTO;
 		// return user;
 	}
 
+	@RequestMapping(path = "/addFriend", method = RequestMethod.POST)
+	public ReturnDTO addFriend(Principal user, @RequestBody FriendDTO firendDTO) {
+		logger.debug("call addFriend  User={},Friend={}", user.getName(), firendDTO.getStudentNumber());
+		ReturnDTO returnDTO = new ReturnDTO();
+		returnDTO.setCode(0);
+		returnDTO.setMessage("success");
+		return returnDTO;
+	}
+
 	@RequestMapping(path = "/room", method = RequestMethod.POST)
 	public ReturnDTO createRoom(Principal user, @RequestBody RoomDTO roomDTO) {
-		logger.debug("call createRoom:user={}",user.getName());
+		logger.debug("call createRoom:user={}", user.getName());
 		ReturnDTO returnDTO = new ReturnDTO();
 		returnDTO.setCode(0);
 		returnDTO.setMessage("success");

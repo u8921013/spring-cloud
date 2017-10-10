@@ -2,4 +2,7 @@ logging:
   level:
      org:
        springframework:
-         security: DEBUG
+         security: INFO
+     net:
+        ubn:
+          td: DEBUG
