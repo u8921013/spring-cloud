@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
@@ -127,13 +128,16 @@ public class AuthServerApplication {
 				}).getBody();
 		returnDTO.setFriends(new ArrayList<FriendDTO>());
 		
-		for(JsonAccountDTO classmateDTO:classmateDTOList){
-			FriendDTO dto=new FriendDTO();
-			dto.setStudentNumber(classmateDTO.getStudentNumber());
-			dto.setName(classmateDTO.getStudentNumber());
-			dto.setImg(classmateDTO.getImg());
-			returnDTO.getFriends().add(dto);
-		}
+		List<FriendDTO> friendsDTOList=classmateDTOList.stream().filter(classmate->!user.getName().equals(classmate.getStudentNumber()))
+						.map(classmate->{
+							FriendDTO dto=new FriendDTO();
+							dto.setStudentNumber(classmate.getStudentNumber());
+							dto.setName(classmate.getStudentNumber());
+							dto.setImg(classmate.getImg());
+							return dto;
+						})
+						.collect(Collectors.toList());
+		returnDTO.setFriends(friendsDTOList);
 		
 		//個人清單
 		ResponseEntity<List<JsonRoomDTO>> roomDTOListResponse = restTemplate.exchange(
