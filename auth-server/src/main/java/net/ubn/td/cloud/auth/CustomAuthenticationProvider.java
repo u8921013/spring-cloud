@@ -15,44 +15,39 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
-import net.ubn.td.cloud.auth.dto.AccountDTO;
+import net.ubn.td.cloud.auth.jsonserver.dto.JsonAccountDTO;
 
 @Component
 public class CustomAuthenticationProvider implements AuthenticationProvider {
-	
-	private RestTemplate restTemplate=new RestTemplate();
-	
+
+	private RestTemplate restTemplate = new RestTemplate();
+
 	private Logger logger = LoggerFactory.getLogger(CustomAuthenticationProvider.class);
-	
-    @Override
-    public Authentication authenticate(Authentication authentication) 
-      throws AuthenticationException {
 
-        String name = authentication.getName();
-        String password = authentication.getCredentials().toString();
-        logger.debug("name:{} password:{}",name,password);
-        System.out.println("name:"+name+"password:"+password);
-        ResponseEntity<List<AccountDTO>> rateResponse =
-                restTemplate.exchange("http://json-sever:3000/users?studentNumber="+name,
-                            HttpMethod.GET, null, new ParameterizedTypeReference<List<AccountDTO>>() {
-                    });
-        List<AccountDTO> accountDTOList = rateResponse.getBody();
-        AccountDTO accountDTO=accountDTOList.get(0);
-        if (accountDTO.getPassword().equals(password)) {
+	@Override
+	public Authentication authenticate(Authentication authentication) throws AuthenticationException {
 
-            // use the credentials
-            // and authenticate against the third-party system
-            return new UsernamePasswordAuthenticationToken(
-              name, password, new ArrayList<>());
-        } else {
-            return null;
-        }
-    }
+		String name = authentication.getName();
+		String password = authentication.getCredentials().toString();
+		logger.debug("name:{} password:{}", name, password);
+//		System.out.println("name:" + name + "password:" + password);
+		ResponseEntity<List<JsonAccountDTO>> rateResponse = restTemplate.exchange(
+				"http://"+AuthServerApplication.JSON_SERVER_DOMAIN+"/users?studentNumber=" + name, HttpMethod.GET, null,
+				new ParameterizedTypeReference<List<JsonAccountDTO>>() {
+				});
+		List<JsonAccountDTO> accountDTOList = rateResponse.getBody();
+		JsonAccountDTO accountDTO = accountDTOList.get(0);
+		if (accountDTO.getPassword().equals(password)) {
+			// use the credentials
+			// and authenticate against the third-party system
+			return new UsernamePasswordAuthenticationToken(name, password, new ArrayList<>());
+		} else {
+			return null;
+		}
+	}
 
-    @Override
-    public boolean supports(Class<?> authentication) {
-        return authentication.equals(
-          UsernamePasswordAuthenticationToken.class);
-    }
+	@Override
+	public boolean supports(Class<?> authentication) {
+		return authentication.equals(UsernamePasswordAuthenticationToken.class);
+	}
 }
-

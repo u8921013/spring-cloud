@@ -3,7 +3,6 @@ package net.ubn.td.cloud.auth;
 import java.io.File;
 import java.security.Principal;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,13 +14,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.env.Environment;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -29,11 +30,12 @@ import net.ubn.td.cloud.auth.dto.AccountDTO;
 import net.ubn.td.cloud.auth.dto.BookInfo;
 import net.ubn.td.cloud.auth.dto.FriendDTO;
 import net.ubn.td.cloud.auth.dto.ReturnAccountDTO;
-import net.ubn.td.cloud.auth.dto.ReturnDTO;
 import net.ubn.td.cloud.auth.dto.ReturnFriendDTO;
 import net.ubn.td.cloud.auth.dto.ReturnRoomDTO;
 import net.ubn.td.cloud.auth.dto.RoomDTO;
 import net.ubn.td.cloud.auth.dto.UserDTO;
+import net.ubn.td.cloud.auth.jsonserver.dto.JsonAccountDTO;
+import net.ubn.td.cloud.auth.jsonserver.dto.JsonRoomDTO;
 
 @SpringBootApplication
 @EnableAuthorizationServer
@@ -41,6 +43,9 @@ import net.ubn.td.cloud.auth.dto.UserDTO;
 public class AuthServerApplication {
 
 	Logger logger = LoggerFactory.getLogger(AuthServerApplication.class);
+
+	private RestTemplate restTemplate = new RestTemplate();
+	public final static String JSON_SERVER_DOMAIN="json-server:3000"; //52.197.54.122 //json-server
 
 	@Autowired
 	private Environment env;
@@ -62,7 +67,6 @@ public class AuthServerApplication {
 
 	@RequestMapping("/userInfo")
 	public ReturnAccountDTO getUserInfo(Principal user) {
-		System.out.println(user.getName());
 		AccountDTO accountDTO = userInfos().get(user.getName());
 		ReturnAccountDTO returnDTO = new ReturnAccountDTO();
 		returnDTO.setStudentNumber(accountDTO.getStudentNumber());
@@ -75,185 +79,79 @@ public class AuthServerApplication {
 	@RequestMapping("/getRoomInfo/{roomId}")
 	public ReturnRoomDTO getRoomInfo(Principal user, @PathVariable(value = "roomId") String roomId) {
 		logger.debug("call getRoomInfo");
-		AccountDTO accountDTO = userInfos().get(user.getName());
-
+		
+		JsonRoomDTO jsonRoomDTO=restTemplate.getForObject("http://"+JSON_SERVER_DOMAIN+"/rooms/"+roomId, JsonRoomDTO.class);
+		
+		
 		ReturnRoomDTO returnDTO = new ReturnRoomDTO();
-		
 		returnDTO.setId(roomId);
-		switch(roomId){
-		case "cs_12345678":
-
-			returnDTO.setName("三人小組會議");
-			break;
-		case "cs_87654321":
-			returnDTO.setName("四人小組會議");
-			break;
+		returnDTO.setName(jsonRoomDTO.getName());
+		
+		returnDTO.setMembers(new ArrayList<UserDTO>());
+		String connectedStudentNumber="studentNumber="+String.join("&studentNumber=", jsonRoomDTO.getMembers());
+		List<JsonAccountDTO> accountDTOList = restTemplate.exchange(
+				"http://"+JSON_SERVER_DOMAIN+"/users?" + connectedStudentNumber, HttpMethod.GET, null,
+				new ParameterizedTypeReference<List<JsonAccountDTO>>() {
+				}).getBody();
+		
+		for(JsonAccountDTO roomMember:accountDTOList){
+			UserDTO userDTO = new UserDTO();
+			userDTO.setImg(roomMember.getImg());
+			userDTO.setName(roomMember.getStudentNumber());
+			userDTO.setStudentNumber(roomMember.getStudentNumber());
+			returnDTO.getMembers().add(userDTO);
 		}
-
-		List<UserDTO> userDTOList=new ArrayList<UserDTO>();
-		
-		UserDTO userDTO1=new UserDTO();
-		userDTO1.setImg("http://localhost:8080/chatroom/img/man01-100x100.jpg");
-		userDTO1.setName("cs");
-		userDTO1.setStudentNumber("cs");
-		userDTOList.add(userDTO1);
-		
-		
-		UserDTO userDTO2=new UserDTO();
-		userDTO2.setImg("http://localhost:8080/chatroom/img/man02-100x100.jpg");
-		userDTO2.setName("kevin");
-		userDTO2.setStudentNumber("kevin");
-		userDTOList.add(userDTO2);
-		
-		UserDTO userDTO3=new UserDTO();
-		userDTO3.setImg("http://localhost:8080/chatroom/img/man03-100x100.jpg");
-		userDTO3.setName("min");
-		userDTO3.setStudentNumber("min");
-		userDTOList.add(userDTO3);
-		
-		UserDTO userDTO4=new UserDTO();
-		userDTO4.setImg("http://localhost:8080/chatroom/img/man04-100x100.jpg");
-		userDTO4.setName("1234");
-		userDTO4.setStudentNumber("1234");
-		userDTOList.add(userDTO4);
-		
-		returnDTO.setMembers(userDTOList);
 		return returnDTO;
-		// return user;
 	}
 
 	@RequestMapping("/getUserInfo")
 	public ReturnFriendDTO getLoginUserData(Principal user) {
-		logger.debug("call getFriends");
-		AccountDTO accountDTO = userInfos().get(user.getName());
-
-		// 假設狀況
-		// cs有三個朋友 min 1234 kevin man01-100x100.jpg
-		// kevin有二個朋友 1234 cs man02-100x100.jpg
-		// min有1個朋友 cs man03-100x100.jpg
-		// 1234有2個朋友 cs kevin man04-100x100.jpg
+		logger.debug("call getUserInfo");
 
 		ReturnFriendDTO returnDTO = new ReturnFriendDTO();
+
+		
+		List<JsonAccountDTO> accountDTOList = restTemplate.exchange(
+				"http://"+JSON_SERVER_DOMAIN+"/users?studentNumber=" + user.getName(), HttpMethod.GET, null,
+				new ParameterizedTypeReference<List<JsonAccountDTO>>() {
+				}).getBody();
+		JsonAccountDTO accountDTO = accountDTOList.get(0);
 		returnDTO.setStudentNumber(accountDTO.getStudentNumber());
 		returnDTO.setClassname(accountDTO.getClassName());
-		switch (accountDTO.getStudentNumber()) {
-		case "cs":
-			returnDTO.setImg("http://localhost:8080/chatroom/img/man01-100x100.jpg");
-			returnDTO.setFriends(Arrays.asList(new FriendDTO[] {
-					FriendDTO.createBuilder("kevin", "kevin", "http://localhost:8080/chatroom/img/man02-100x100.jpg")
-							.getDTO(),
-					FriendDTO.createBuilder("min", "min", "http://localhost:8080/chatroom/img/man03-100x100.jpg").getDTO(),
-					FriendDTO.createBuilder("1234", "1234", "http://localhost:8080/chatroom/img/man04-100x100.jpg")
-							.getDTO() }));
-			break;
-		case "kevin":
-			returnDTO.setImg("http://localhost:8080/chatroom/img/man02-100x100.jpg");
-			returnDTO.setFriends(Arrays.asList(new FriendDTO[] {
-					FriendDTO.createBuilder("cs", "cs", "http://localhost:8080/chatroom/img/man01-100x100.jpg").getDTO(),
-					FriendDTO.createBuilder("1234", "1234", "http://localhost:8080/chatroom/img/man04-100x100.jpg")
-							.getDTO() }));
-			break;
-		case "min":
-			returnDTO.setImg("http://localhost:8080/chatroom/img/man03-100x100.jpg");
-			returnDTO.setFriends(Arrays.asList(new FriendDTO[] { FriendDTO
-					.createBuilder("cs", "cs", "http://localhost:8080/chatroom/img/man01-100x100.jpg").getDTO() }));
-			break;
-		case "1234":
-			returnDTO.setImg("http://localhost:8080/chatroom/man04-100x100.jpg");
-			returnDTO.setFriends(Arrays.asList(new FriendDTO[] {
-					FriendDTO.createBuilder("cs", "cs", "http://localhost:8080/chatroom/img/man01-100x100.jpg").getDTO(),
-					FriendDTO.createBuilder("kevin", "kevin", "http://localhost:8080/chatroom/img/man02-100x100.jpg")
-							.getDTO() }));
-			break;
+		returnDTO.setImg(accountDTO.getImg());
+		
+		//同學資料
+		List<JsonAccountDTO> classmateDTOList = restTemplate.exchange(
+				"http://"+JSON_SERVER_DOMAIN+"/users?className=" + accountDTO.getClassName(), HttpMethod.GET, null,
+				new ParameterizedTypeReference<List<JsonAccountDTO>>() {
+				}).getBody();
+		returnDTO.setFriends(new ArrayList<FriendDTO>());
+		
+		for(JsonAccountDTO classmateDTO:classmateDTOList){
+			FriendDTO dto=new FriendDTO();
+			dto.setStudentNumber(classmateDTO.getStudentNumber());
+			dto.setName(classmateDTO.getStudentNumber());
+			dto.setImg(classmateDTO.getImg());
+			returnDTO.getFriends().add(dto);
 		}
-
-		RoomDTO roomDTO = new RoomDTO();
-		roomDTO.setId("cs_12345678");
-		roomDTO.setName("三人小組會議");
-
-		RoomDTO roomDTO1 = new RoomDTO();
-		roomDTO1.setId("cs_87654321");
-		roomDTO1.setName("四人小組會議");
-		returnDTO.setRooms(Arrays.asList(new RoomDTO[] { roomDTO, roomDTO1 }));
-		return returnDTO;
-		// return user;
-	}
-
-	@RequestMapping("/getFriends")
-	public ReturnFriendDTO getFriends(Principal user) {
-		logger.debug("call getFriends");
-		AccountDTO accountDTO = userInfos().get(user.getName());
-
-		// 假設狀況
-		// cs有三個朋友 min 1234 kevin man01-100x100.jpg
-		// kevin有二個朋友 1234 cs man02-100x100.jpg
-		// min有1個朋友 cs man03-100x100.jpg
-		// 1234有2個朋友 cs kevin man04-100x100.jpg
-
-		ReturnFriendDTO returnDTO = new ReturnFriendDTO();
-		returnDTO.setStudentNumber(accountDTO.getStudentNumber());
-		returnDTO.setClassname(accountDTO.getClassName());
-		switch (accountDTO.getStudentNumber()) {
-		case "cs":
-			returnDTO.setImg("http://localhost:8080/chatroom/man01-100x100.jpg");
-			returnDTO.setFriends(Arrays.asList(new FriendDTO[] {
-					FriendDTO.createBuilder("kevin", "kevin", "http://localhost:8080/chatroom/man02-100x100.jpg")
-							.getDTO(),
-					FriendDTO.createBuilder("min", "min", "http://localhost:8080/chatroom/man03-100x100.jpg").getDTO(),
-					FriendDTO.createBuilder("1234", "1234", "http://localhost:8080/chatroom/man04-100x100.jpg")
-							.getDTO() }));
-			break;
-		case "kevin":
-			returnDTO.setImg("http://localhost:8080/chatroom/man02-100x100.jpg");
-			returnDTO.setFriends(Arrays.asList(new FriendDTO[] {
-					FriendDTO.createBuilder("cs", "cs", "http://localhost:8080/chatroom/man01-100x100.jpg").getDTO(),
-					FriendDTO.createBuilder("1234", "1234", "http://localhost:8080/chatroom/man04-100x100.jpg")
-							.getDTO() }));
-			break;
-		case "min":
-			returnDTO.setImg("http://localhost:8080/chatroom/man03-100x100.jpg");
-			returnDTO.setFriends(Arrays.asList(new FriendDTO[] { FriendDTO
-					.createBuilder("cs", "cs", "http://localhost:8080/chatroom/man01-100x100.jpg").getDTO() }));
-			break;
-		case "1234":
-			returnDTO.setImg("http://localhost:8080/chatroom/man04-100x100.jpg");
-			returnDTO.setFriends(Arrays.asList(new FriendDTO[] {
-					FriendDTO.createBuilder("cs", "cs", "http://localhost:8080/chatroom/man01-100x100.jpg").getDTO(),
-					FriendDTO.createBuilder("kevin", "kevin", "http://localhost:8080/chatroom/man02-100x100.jpg")
-							.getDTO() }));
-			break;
+		
+		//個人清單
+		ResponseEntity<List<JsonRoomDTO>> roomDTOListResponse = restTemplate.exchange(
+				"http://"+JSON_SERVER_DOMAIN+"/rooms?q=" + user.getName(), HttpMethod.GET, null,
+				new ParameterizedTypeReference<List<JsonRoomDTO>>() {
+				});
+		List<JsonRoomDTO> rooms = roomDTOListResponse.getBody();
+		List<RoomDTO> roomList=new ArrayList<>();
+		for(JsonRoomDTO jsonRoomDTO:rooms){
+			RoomDTO roomDTO = new RoomDTO();
+			roomDTO.setId(jsonRoomDTO.getId());
+			roomDTO.setName(jsonRoomDTO.getName());
+			roomList.add(roomDTO);
 		}
-
-		RoomDTO roomDTO = new RoomDTO();
-		roomDTO.setId("cs_12345678");
-		roomDTO.setName("三人小組會議");
-
-		RoomDTO roomDTO1 = new RoomDTO();
-		roomDTO1.setId("cs_87654321");
-		roomDTO1.setName("四人小組會議");
-		returnDTO.setRooms(Arrays.asList(new RoomDTO[] { roomDTO, roomDTO1 }));
-		return returnDTO;
-		// return user;
-	}
-
-	@RequestMapping(path = "/addFriend", method = RequestMethod.POST)
-	public ReturnDTO addFriend(Principal user, @RequestBody FriendDTO firendDTO) {
-		logger.debug("call addFriend  User={},Friend={}", user.getName(), firendDTO.getStudentNumber());
-		ReturnDTO returnDTO = new ReturnDTO();
-		returnDTO.setCode(0);
-		returnDTO.setMessage("success");
+		returnDTO.setRooms(roomList);
 		return returnDTO;
 	}
-
-	@RequestMapping(path = "/room", method = RequestMethod.POST)
-	public ReturnDTO createRoom(Principal user, @RequestBody RoomDTO roomDTO) {
-		logger.debug("call createRoom:user={}", user.getName());
-		ReturnDTO returnDTO = new ReturnDTO();
-		returnDTO.setCode(0);
-		returnDTO.setMessage("success");
-		return returnDTO;
-	}
-
+	
 	@RequestMapping("/bookInfo/{classname}")
 	public List<BookInfo> getUserInfo(@PathVariable(value = "classname") String classname) {
 		System.out.println("classname=" + classname);
