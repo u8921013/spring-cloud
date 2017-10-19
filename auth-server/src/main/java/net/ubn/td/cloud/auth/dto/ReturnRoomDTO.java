@@ -2,9 +2,14 @@ package net.ubn.td.cloud.auth.dto;
 
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 public class ReturnRoomDTO {
+	
 	private String id;
 	private String name;
+	
+	@JsonInclude(JsonInclude.Include.NON_NULL) 
 	private List<UserDTO> members;
 	
 	public String getId() {

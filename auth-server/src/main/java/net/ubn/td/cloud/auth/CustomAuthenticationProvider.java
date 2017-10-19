@@ -37,6 +37,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
 				});
 		List<JsonAccountDTO> accountDTOList = rateResponse.getBody();
 		JsonAccountDTO accountDTO = accountDTOList.get(0);
+		logger.debug("accountDTO.type={}",accountDTO.getType());
 		if (accountDTO.getPassword().equals(password)) {
 			// use the credentials
 			// and authenticate against the third-party system

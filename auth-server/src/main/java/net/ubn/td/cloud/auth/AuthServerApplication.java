@@ -17,24 +17,34 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.env.Environment;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import net.ubn.td.cloud.auth.dto.AccountDTO;
 import net.ubn.td.cloud.auth.dto.BookInfo;
+import net.ubn.td.cloud.auth.dto.CreateRoomDTO;
 import net.ubn.td.cloud.auth.dto.FriendDTO;
 import net.ubn.td.cloud.auth.dto.ReturnAccountDTO;
+import net.ubn.td.cloud.auth.dto.ReturnDTO;
 import net.ubn.td.cloud.auth.dto.ReturnFriendDTO;
 import net.ubn.td.cloud.auth.dto.ReturnRoomDTO;
 import net.ubn.td.cloud.auth.dto.RoomDTO;
 import net.ubn.td.cloud.auth.dto.UserDTO;
+import net.ubn.td.cloud.auth.dto.UserRoomDTO;
+import net.ubn.td.cloud.auth.jsonserver.dto.AccountType;
 import net.ubn.td.cloud.auth.jsonserver.dto.JsonAccountDTO;
 import net.ubn.td.cloud.auth.jsonserver.dto.JsonRoomDTO;
 
@@ -46,7 +56,8 @@ public class AuthServerApplication {
 	Logger logger = LoggerFactory.getLogger(AuthServerApplication.class);
 
 	private RestTemplate restTemplate = new RestTemplate();
-	public final static String JSON_SERVER_DOMAIN="json-server:3000"; //52.197.54.122 //json-server
+	public final static String JSON_SERVER_DOMAIN = "localhost:3000"; // 52.197.54.122
+																		// //json-server
 
 	@Autowired
 	private Environment env;
@@ -68,34 +79,36 @@ public class AuthServerApplication {
 
 	@RequestMapping("/userInfo")
 	public ReturnAccountDTO getUserInfo(Principal user) {
-		AccountDTO accountDTO = userInfos().get(user.getName());
+		JsonAccountDTO jsonAccountDTO = getAccountDTO(user);
+
 		ReturnAccountDTO returnDTO = new ReturnAccountDTO();
-		returnDTO.setStudentNumber(accountDTO.getStudentNumber());
-		returnDTO.setClassName(accountDTO.getClassName());
+		returnDTO.setStudentNumber(jsonAccountDTO.getStudentNumber());
+		returnDTO.setClassName(jsonAccountDTO.getClassName());
+		returnDTO.setType(jsonAccountDTO.getType());
 		returnDTO.setReadingTime(System.currentTimeMillis());
 		return returnDTO;
-		// return user;
 	}
 
 	@RequestMapping("/getRoomInfo/{roomId}")
 	public ReturnRoomDTO getRoomInfo(Principal user, @PathVariable(value = "roomId") String roomId) {
 		logger.debug("call getRoomInfo");
-		
-		JsonRoomDTO jsonRoomDTO=restTemplate.getForObject("http://"+JSON_SERVER_DOMAIN+"/rooms/"+roomId, JsonRoomDTO.class);
-		
-		
+
+		JsonRoomDTO jsonRoomDTO = restTemplate.getForObject("http://" + JSON_SERVER_DOMAIN + "/rooms/" + roomId,
+				JsonRoomDTO.class);
+
 		ReturnRoomDTO returnDTO = new ReturnRoomDTO();
 		returnDTO.setId(roomId);
 		returnDTO.setName(jsonRoomDTO.getName());
-		
+
 		returnDTO.setMembers(new ArrayList<UserDTO>());
-		String connectedStudentNumber="studentNumber="+String.join("&studentNumber=", jsonRoomDTO.getMembers());
-		List<JsonAccountDTO> accountDTOList = restTemplate.exchange(
-				"http://"+JSON_SERVER_DOMAIN+"/users?" + connectedStudentNumber, HttpMethod.GET, null,
-				new ParameterizedTypeReference<List<JsonAccountDTO>>() {
-				}).getBody();
-		
-		for(JsonAccountDTO roomMember:accountDTOList){
+		String connectedStudentNumber = "studentNumber=" + String.join("&studentNumber=", jsonRoomDTO.getMembers());
+		List<JsonAccountDTO> accountDTOList = restTemplate
+				.exchange("http://" + JSON_SERVER_DOMAIN + "/users?" + connectedStudentNumber, HttpMethod.GET, null,
+						new ParameterizedTypeReference<List<JsonAccountDTO>>() {
+						})
+				.getBody();
+
+		for (JsonAccountDTO roomMember : accountDTOList) {
 			UserDTO userDTO = new UserDTO();
 			userDTO.setImg(roomMember.getImg());
 			userDTO.setName(roomMember.getStudentNumber());
@@ -105,57 +118,363 @@ public class AuthServerApplication {
 		return returnDTO;
 	}
 
+	private JsonAccountDTO getAccountDTO(Principal user) {
+		List<JsonAccountDTO> accountDTOList = restTemplate
+				.exchange("http://" + JSON_SERVER_DOMAIN + "/users?studentNumber=" + user.getName(), HttpMethod.GET,
+						null, new ParameterizedTypeReference<List<JsonAccountDTO>>() {
+						})
+				.getBody();
+
+		JsonAccountDTO accountDTO = accountDTOList.get(0);
+		return accountDTO;
+	}
+
+	@RequestMapping(path = "/listClassmates", method = RequestMethod.GET)
+	public List<ReturnAccountDTO> listClassmates(Principal user) {
+
+		JsonAccountDTO jsonAccountDTO = getAccountDTO(user);
+		List<JsonAccountDTO> classmateDTOList = restTemplate
+				.exchange("http://" + JSON_SERVER_DOMAIN + "/users?className=" + jsonAccountDTO.getClassName(),
+						HttpMethod.GET, null, new ParameterizedTypeReference<List<JsonAccountDTO>>() {
+						})
+				.getBody();
+		List<ReturnAccountDTO> returnDTOList = classmateDTOList.stream().map(classmate -> {
+			ReturnAccountDTO returnDTO = new ReturnAccountDTO();
+			returnDTO.setStudentNumber(classmate.getStudentNumber());
+			returnDTO.setPassword(classmate.getPassword());
+			returnDTO.setClassName(classmate.getClassName());
+			returnDTO.setImg(classmate.getImg());
+			return returnDTO;
+		}).collect(Collectors.toList());
+		return returnDTOList;
+	}
+
+	@RequestMapping(path = "/findClassmate/{stuentNumber}", method = RequestMethod.GET)
+	public ReturnAccountDTO findClassmateByStuentNumber(@PathVariable("stuentNumber") String strStuentNumber) {
+		
+		List<JsonAccountDTO> accountDTOList = restTemplate
+				.exchange("http://" + JSON_SERVER_DOMAIN + "/users?studentNumber=" +strStuentNumber, HttpMethod.GET,
+						null, new ParameterizedTypeReference<List<JsonAccountDTO>>() {
+						})
+				.getBody();
+
+		JsonAccountDTO accountDTO = accountDTOList.get(0);
+		
+		ReturnAccountDTO returnDTO=new ReturnAccountDTO();
+		returnDTO.setId(accountDTO.getId());
+		returnDTO.setStudentNumber(accountDTO.getStudentNumber());
+		returnDTO.setPassword(accountDTO.getPassword());
+		returnDTO.setClassName(accountDTO.getClassName());
+		returnDTO.setType(accountDTO.getType());
+		returnDTO.setImg(accountDTO.getImg());
+		return returnDTO;
+	}
+
+	@RequestMapping(path = "/createClassmate", method = RequestMethod.POST)
+	public ReturnDTO createClassmate(Principal user, @RequestBody ReturnAccountDTO paramDTO) {
+		logger.debug("[createClassmate] studentNumber={}",paramDTO.getStudentNumber());
+		logger.debug("[createClassmate] password={}",paramDTO.getPassword());
+		logger.debug("[createClassmate] image={}",paramDTO.getImg());
+		
+		JsonAccountDTO loginAccountDTO = getAccountDTO(user);
+		
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
+
+		JsonAccountDTO jsonAccountDTO = new JsonAccountDTO();
+		jsonAccountDTO.setStudentNumber(paramDTO.getStudentNumber());
+		jsonAccountDTO.setPassword(paramDTO.getPassword());
+		jsonAccountDTO.setClassName(loginAccountDTO.getClassName());
+		jsonAccountDTO.setType(AccountType.student);
+
+		jsonAccountDTO.setImg(paramDTO.getImg());
+		// Jackson ObjectMapper to convert requestBody to JSON
+		ReturnDTO returnDTO=new ReturnDTO();
+		String json;
+		try {
+			json = new ObjectMapper().writeValueAsString(jsonAccountDTO);
+			logger.debug("json="+json);
+			HttpEntity<String> entity = new HttpEntity<>(json, headers);
+			String response = restTemplate
+					.postForEntity("http://" + JSON_SERVER_DOMAIN + "/users", entity, String.class).getBody();
+			logger.debug("response:" + response);
+			returnDTO.setCode(0);
+			returnDTO.setMessage("success");
+		} catch (Exception e) {
+			returnDTO.setCode(-1);
+			returnDTO.setMessage("Fail");
+		}
+		
+		return returnDTO;
+	}
+	@RequestMapping(path = "/deleteClassmate", method = RequestMethod.POST)
+	public ReturnDTO deleteClassmate(Principal user, @RequestBody String strStudentNumber) {
+//		JsonAccountDTO loginAccountDTO = getAccountDTO(user);
+		
+		ReturnDTO returnDTO=new ReturnDTO();
+		try {
+			
+			List<JsonAccountDTO> accountDTOList = restTemplate
+					.exchange("http://" + JSON_SERVER_DOMAIN + "/users?studentNumber=" + strStudentNumber, HttpMethod.GET,
+							null, new ParameterizedTypeReference<List<JsonAccountDTO>>() {
+							})
+					.getBody();
+			accountDTOList.stream().forEach(account->{
+				String url="http://" + JSON_SERVER_DOMAIN + "/users/"+account.getId();
+				logger.debug("url="+url);
+				restTemplate.delete(url);
+			});
+			
+			returnDTO.setCode(0);
+			returnDTO.setMessage("success");
+		} catch (Exception e) {
+			returnDTO.setCode(-1);
+			returnDTO.setMessage("Fail");
+		}
+		
+		return returnDTO;
+	}
+	
+	@RequestMapping(path = "/updateClassmate", method = RequestMethod.POST)
+	public ReturnDTO updataClassmate(Principal user, @RequestBody ReturnAccountDTO paramDTO) {
+		JsonAccountDTO loginAccountDTO = getAccountDTO(user);
+		logger.debug("[updataClassmate] studentNumber={}",paramDTO.getStudentNumber());
+		logger.debug("[updataClassmate] password={}",paramDTO.getPassword());
+		logger.debug("[updataClassmate] image={}",paramDTO.getImg());
+		
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
+
+		JsonAccountDTO jsonAccountDTO = new JsonAccountDTO();
+		jsonAccountDTO.setStudentNumber(paramDTO.getStudentNumber());
+		jsonAccountDTO.setPassword(paramDTO.getPassword());
+		jsonAccountDTO.setClassName(loginAccountDTO.getClassName());
+		jsonAccountDTO.setImg(paramDTO.getImg());
+		jsonAccountDTO.setType(AccountType.teacher);
+
+		jsonAccountDTO.setImg(paramDTO.getImg());
+		ReturnDTO returnDTO=new ReturnDTO();
+		// Jackson ObjectMapper to convert requestBody to JSON
+		String json;
+		try {
+			json = new ObjectMapper().writeValueAsString(jsonAccountDTO);
+			HttpEntity<String> entity = new HttpEntity<>(json, headers);
+			String url="http://" + JSON_SERVER_DOMAIN + "/users/"+paramDTO.getId();
+			logger.debug("http://" + JSON_SERVER_DOMAIN + "/users/"+paramDTO.getId());
+			String response=restTemplate.exchange(url, HttpMethod.PUT, entity, String.class).getBody();
+			logger.debug(response);
+			returnDTO.setCode(0);
+			returnDTO.setMessage("success");
+		} catch (Exception e) {
+			returnDTO.setCode(-1);
+			returnDTO.setMessage("Fail");
+		}
+		
+		return returnDTO;
+	}
+
+	@RequestMapping("/getRoomHeader")
+	public List<String> getRoomListByClassName(Principal user) {
+
+		JsonAccountDTO jsonAccountDTO = getAccountDTO(user);
+		// rooms清單
+		List<JsonRoomDTO> jsonRoomDTOList = restTemplate
+				.exchange("http://" + JSON_SERVER_DOMAIN + "/rooms?classname=" + jsonAccountDTO.getClassName(),
+						HttpMethod.GET, null, new ParameterizedTypeReference<List<JsonRoomDTO>>() {
+						})
+				.getBody();
+
+		List<String> lst = new ArrayList<>();
+		jsonRoomDTOList.stream().forEach(jsonRoomDTO -> {
+			String strGroupName = jsonRoomDTO.getGroupName();
+			String strName = jsonRoomDTO.getName();
+			if (!lst.contains(strGroupName)) {
+				lst.add(strGroupName);
+			}
+		});
+		System.out.println(lst);
+		return lst;
+	}
+
+	@RequestMapping("/getRoomData")
+	public List<UserRoomDTO> getRoomData(Principal user) {
+		logger.debug("call getUserInfo");
+
+		ReturnFriendDTO returnDTO = new ReturnFriendDTO();
+
+		List<JsonAccountDTO> accountDTOList = restTemplate
+				.exchange("http://" + JSON_SERVER_DOMAIN + "/users?studentNumber=" + user.getName(), HttpMethod.GET,
+						null, new ParameterizedTypeReference<List<JsonAccountDTO>>() {
+						})
+				.getBody();
+
+		JsonAccountDTO accountDTO = accountDTOList.get(0);
+		String strClassName = accountDTO.getClassName();
+		logger.debug("[getRoomData] strClassName={}", strClassName);
+
+		// 同學資料
+		List<JsonAccountDTO> classmateDTOList = restTemplate
+				.exchange("http://" + JSON_SERVER_DOMAIN + "/users?className=" + accountDTO.getClassName(),
+						HttpMethod.GET, null, new ParameterizedTypeReference<List<JsonAccountDTO>>() {
+						})
+				.getBody();
+		returnDTO.setFriends(new ArrayList<FriendDTO>());
+		List<UserRoomDTO> dataList = classmateDTOList.stream()
+				.filter(classmate -> !user.getName().equals(classmate.getStudentNumber())).map(classmate -> {
+					List<JsonRoomDTO> rooms = restTemplate
+							.exchange("http://" + JSON_SERVER_DOMAIN + "/rooms?q=" + classmate.getStudentNumber(),
+									HttpMethod.GET, null, new ParameterizedTypeReference<List<JsonRoomDTO>>() {
+									})
+							.getBody();
+					List<ReturnRoomDTO> roomIds = rooms.stream().map(room -> {
+						ReturnRoomDTO returnRoomDTO = new ReturnRoomDTO();
+						returnRoomDTO.setId(room.getId());
+						returnRoomDTO.setName(room.getName());
+						return returnRoomDTO;
+					}).collect(Collectors.toList());
+					UserRoomDTO userRoomDTO = new UserRoomDTO();
+					userRoomDTO.setStudentNumber(classmate.getStudentNumber());
+					userRoomDTO.setRooms(roomIds);
+					return userRoomDTO;
+				}).collect(Collectors.toList());
+
+		return dataList;
+	}
+
 	@RequestMapping("/getUserInfo")
 	public ReturnFriendDTO getLoginUserData(Principal user) {
 		logger.debug("call getUserInfo");
 
 		ReturnFriendDTO returnDTO = new ReturnFriendDTO();
 
-		
-		List<JsonAccountDTO> accountDTOList = restTemplate.exchange(
-				"http://"+JSON_SERVER_DOMAIN+"/users?studentNumber=" + user.getName(), HttpMethod.GET, null,
-				new ParameterizedTypeReference<List<JsonAccountDTO>>() {
-				}).getBody();
+		List<JsonAccountDTO> accountDTOList = restTemplate
+				.exchange("http://" + JSON_SERVER_DOMAIN + "/users?studentNumber=" + user.getName(), HttpMethod.GET,
+						null, new ParameterizedTypeReference<List<JsonAccountDTO>>() {
+						})
+				.getBody();
 		JsonAccountDTO accountDTO = accountDTOList.get(0);
 		returnDTO.setStudentNumber(accountDTO.getStudentNumber());
 		returnDTO.setClassname(accountDTO.getClassName());
 		returnDTO.setImg(accountDTO.getImg());
-		
-		//同學資料
-		List<JsonAccountDTO> classmateDTOList = restTemplate.exchange(
-				"http://"+JSON_SERVER_DOMAIN+"/users?className=" + accountDTO.getClassName(), HttpMethod.GET, null,
-				new ParameterizedTypeReference<List<JsonAccountDTO>>() {
-				}).getBody();
-		returnDTO.setFriends(new ArrayList<FriendDTO>());
-		
-		List<FriendDTO> friendsDTOList=classmateDTOList.stream().filter(classmate->!user.getName().equals(classmate.getStudentNumber()))
-						.map(classmate->{
-							FriendDTO dto=new FriendDTO();
-							dto.setStudentNumber(classmate.getStudentNumber());
-							dto.setName(classmate.getStudentNumber());
-							dto.setImg(classmate.getImg());
-							return dto;
+
+		// 同學資料
+		List<JsonAccountDTO> classmateDTOList = restTemplate
+				.exchange("http://" + JSON_SERVER_DOMAIN + "/users?className=" + accountDTO.getClassName(),
+						HttpMethod.GET, null, new ParameterizedTypeReference<List<JsonAccountDTO>>() {
 						})
-						.collect(Collectors.toList());
+				.getBody();
+		returnDTO.setFriends(new ArrayList<FriendDTO>());
+
+		List<FriendDTO> friendsDTOList = classmateDTOList.stream()
+				.filter(classmate -> !user.getName().equals(classmate.getStudentNumber())).map(classmate -> {
+					FriendDTO dto = new FriendDTO();
+					dto.setStudentNumber(classmate.getStudentNumber());
+					dto.setName(classmate.getStudentNumber());
+					dto.setImg(classmate.getImg());
+					return dto;
+				}).collect(Collectors.toList());
 		returnDTO.setFriends(friendsDTOList);
-		
-		//個人清單
+
+		// 個人清單
 		ResponseEntity<List<JsonRoomDTO>> roomDTOListResponse = restTemplate.exchange(
-				"http://"+JSON_SERVER_DOMAIN+"/rooms?q=" + user.getName(), HttpMethod.GET, null,
+				"http://" + JSON_SERVER_DOMAIN + "/rooms?q=" + user.getName(), HttpMethod.GET, null,
 				new ParameterizedTypeReference<List<JsonRoomDTO>>() {
 				});
 		List<JsonRoomDTO> rooms = roomDTOListResponse.getBody();
-		List<RoomDTO> roomList=new ArrayList<>();
-		for(JsonRoomDTO jsonRoomDTO:rooms){
+		List<RoomDTO> roomList = rooms.stream().map(jsonRoomDTO -> {
 			RoomDTO roomDTO = new RoomDTO();
 			roomDTO.setId(jsonRoomDTO.getId());
 			roomDTO.setName(jsonRoomDTO.getName());
-			roomList.add(roomDTO);
-		}
+			return roomDTO;
+		}).collect(Collectors.toList());
 		returnDTO.setRooms(roomList);
 		return returnDTO;
 	}
-	
+
+	@RequestMapping(path = "/createPerson", method = RequestMethod.POST)
+	public ReturnDTO createPerson(Principal user, @RequestBody CreateRoomDTO createRoomDTO) {
+		logger.debug("[createRoomDTO] name={}", createRoomDTO.getName());
+		logger.debug("[createRoomDTO] rooms={}", createRoomDTO.getRooms());
+		JsonAccountDTO jsonAccountDTO = getAccountDTO(user);
+		try {
+			createRoomDTO.getRooms().keySet().stream().forEach(roomIndex -> {
+				List<String> members = createRoomDTO.getRooms().get(roomIndex);
+				System.out.println("member=" + members);
+
+				HttpHeaders headers = new HttpHeaders();
+				headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
+
+				JsonRoomDTO jsonRoomDTO = new JsonRoomDTO();
+				jsonRoomDTO.setClassName(jsonAccountDTO.getClassName());
+				jsonRoomDTO.setGroupName(createRoomDTO.getName());
+				jsonRoomDTO.setName("第" + roomIndex + "組");
+				jsonRoomDTO.setMembers(members);
+				// Jackson ObjectMapper to convert requestBody to JSON
+				String json;
+				try {
+					json = new ObjectMapper().writeValueAsString(jsonRoomDTO);
+					HttpEntity<String> entity = new HttpEntity<>(json, headers);
+					String response = restTemplate
+							.postForEntity("http://" + JSON_SERVER_DOMAIN + "/rooms", entity, String.class).getBody();
+					logger.debug("response:" + response);
+				} catch (JsonProcessingException e) {
+
+				}
+			});
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		ReturnDTO returnDTO = new ReturnDTO();
+		returnDTO.setCode(0);
+		returnDTO.setMessage("success");
+
+		return returnDTO;
+	}
+
+	@RequestMapping(path = "/createRoom", method = RequestMethod.POST)
+	public ReturnDTO createRoom(Principal user, @RequestBody CreateRoomDTO createRoomDTO) {
+		logger.debug("[createRoomDTO] name={}", createRoomDTO.getName());
+		logger.debug("[createRoomDTO] rooms={}", createRoomDTO.getRooms());
+		JsonAccountDTO jsonAccountDTO = getAccountDTO(user);
+		try {
+			createRoomDTO.getRooms().keySet().stream().forEach(roomIndex -> {
+				List<String> members = createRoomDTO.getRooms().get(roomIndex);
+				System.out.println("member=" + members);
+
+				HttpHeaders headers = new HttpHeaders();
+				headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
+
+				JsonRoomDTO jsonRoomDTO = new JsonRoomDTO();
+				jsonRoomDTO.setClassName(jsonAccountDTO.getClassName());
+				jsonRoomDTO.setGroupName(createRoomDTO.getName());
+				jsonRoomDTO.setName("第" + roomIndex + "組");
+				jsonRoomDTO.setMembers(members);
+				// Jackson ObjectMapper to convert requestBody to JSON
+				String json;
+				try {
+					json = new ObjectMapper().writeValueAsString(jsonRoomDTO);
+					HttpEntity<String> entity = new HttpEntity<>(json, headers);
+					String response = restTemplate
+							.postForEntity("http://" + JSON_SERVER_DOMAIN + "/rooms", entity, String.class).getBody();
+					logger.debug("response:" + response);
+				} catch (JsonProcessingException e) {
+
+				}
+			});
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		ReturnDTO returnDTO = new ReturnDTO();
+		returnDTO.setCode(0);
+		returnDTO.setMessage("success");
+
+		return returnDTO;
+	}
+
 	@RequestMapping("/bookInfo/{classname}")
 	public List<BookInfo> getUserInfo(@PathVariable(value = "classname") String classname) {
 		System.out.println("classname=" + classname);
