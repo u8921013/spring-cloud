@@ -12,6 +12,7 @@ import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -56,9 +57,11 @@ public class AuthServerApplication {
 	Logger logger = LoggerFactory.getLogger(AuthServerApplication.class);
 
 	private RestTemplate restTemplate = new RestTemplate();
-	public final static String JSON_SERVER_DOMAIN = "localhost:3000"; // 52.197.54.122
-																		// //json-server
-
+	
+	@Value("${jsonserver.domain}")
+	private String json_server_domain;
+	
+	
 	@Autowired
 	private Environment env;
 
@@ -93,7 +96,7 @@ public class AuthServerApplication {
 	public ReturnRoomDTO getRoomInfo(Principal user, @PathVariable(value = "roomId") String roomId) {
 		logger.debug("call getRoomInfo");
 
-		JsonRoomDTO jsonRoomDTO = restTemplate.getForObject("http://" + JSON_SERVER_DOMAIN + "/rooms/" + roomId,
+		JsonRoomDTO jsonRoomDTO = restTemplate.getForObject("http://" + json_server_domain + "/rooms/" + roomId,
 				JsonRoomDTO.class);
 
 		ReturnRoomDTO returnDTO = new ReturnRoomDTO();
@@ -103,7 +106,7 @@ public class AuthServerApplication {
 		returnDTO.setMembers(new ArrayList<UserDTO>());
 		String connectedStudentNumber = "studentNumber=" + String.join("&studentNumber=", jsonRoomDTO.getMembers());
 		List<JsonAccountDTO> accountDTOList = restTemplate
-				.exchange("http://" + JSON_SERVER_DOMAIN + "/users?" + connectedStudentNumber, HttpMethod.GET, null,
+				.exchange("http://" + json_server_domain + "/users?" + connectedStudentNumber, HttpMethod.GET, null,
 						new ParameterizedTypeReference<List<JsonAccountDTO>>() {
 						})
 				.getBody();
@@ -120,7 +123,7 @@ public class AuthServerApplication {
 
 	private JsonAccountDTO getAccountDTO(Principal user) {
 		List<JsonAccountDTO> accountDTOList = restTemplate
-				.exchange("http://" + JSON_SERVER_DOMAIN + "/users?studentNumber=" + user.getName(), HttpMethod.GET,
+				.exchange("http://" + json_server_domain + "/users?studentNumber=" + user.getName(), HttpMethod.GET,
 						null, new ParameterizedTypeReference<List<JsonAccountDTO>>() {
 						})
 				.getBody();
@@ -134,7 +137,7 @@ public class AuthServerApplication {
 
 		JsonAccountDTO jsonAccountDTO = getAccountDTO(user);
 		List<JsonAccountDTO> classmateDTOList = restTemplate
-				.exchange("http://" + JSON_SERVER_DOMAIN + "/users?className=" + jsonAccountDTO.getClassName(),
+				.exchange("http://" + json_server_domain + "/users?className=" + jsonAccountDTO.getClassName(),
 						HttpMethod.GET, null, new ParameterizedTypeReference<List<JsonAccountDTO>>() {
 						})
 				.getBody();
@@ -153,7 +156,7 @@ public class AuthServerApplication {
 	public ReturnAccountDTO findClassmateByStuentNumber(@PathVariable("stuentNumber") String strStuentNumber) {
 		
 		List<JsonAccountDTO> accountDTOList = restTemplate
-				.exchange("http://" + JSON_SERVER_DOMAIN + "/users?studentNumber=" +strStuentNumber, HttpMethod.GET,
+				.exchange("http://" + json_server_domain + "/users?studentNumber=" +strStuentNumber, HttpMethod.GET,
 						null, new ParameterizedTypeReference<List<JsonAccountDTO>>() {
 						})
 				.getBody();
@@ -196,7 +199,7 @@ public class AuthServerApplication {
 			logger.debug("json="+json);
 			HttpEntity<String> entity = new HttpEntity<>(json, headers);
 			String response = restTemplate
-					.postForEntity("http://" + JSON_SERVER_DOMAIN + "/users", entity, String.class).getBody();
+					.postForEntity("http://" + json_server_domain + "/users", entity, String.class).getBody();
 			logger.debug("response:" + response);
 			returnDTO.setCode(0);
 			returnDTO.setMessage("success");
@@ -215,12 +218,12 @@ public class AuthServerApplication {
 		try {
 			
 			List<JsonAccountDTO> accountDTOList = restTemplate
-					.exchange("http://" + JSON_SERVER_DOMAIN + "/users?studentNumber=" + strStudentNumber, HttpMethod.GET,
+					.exchange("http://" + json_server_domain + "/users?studentNumber=" + strStudentNumber, HttpMethod.GET,
 							null, new ParameterizedTypeReference<List<JsonAccountDTO>>() {
 							})
 					.getBody();
 			accountDTOList.stream().forEach(account->{
-				String url="http://" + JSON_SERVER_DOMAIN + "/users/"+account.getId();
+				String url="http://" + json_server_domain + "/users/"+account.getId();
 				logger.debug("url="+url);
 				restTemplate.delete(url);
 			});
@@ -259,8 +262,7 @@ public class AuthServerApplication {
 		try {
 			json = new ObjectMapper().writeValueAsString(jsonAccountDTO);
 			HttpEntity<String> entity = new HttpEntity<>(json, headers);
-			String url="http://" + JSON_SERVER_DOMAIN + "/users/"+paramDTO.getId();
-			logger.debug("http://" + JSON_SERVER_DOMAIN + "/users/"+paramDTO.getId());
+			String url="http://" + json_server_domain + "/users/"+paramDTO.getId();
 			String response=restTemplate.exchange(url, HttpMethod.PUT, entity, String.class).getBody();
 			logger.debug(response);
 			returnDTO.setCode(0);
@@ -279,7 +281,7 @@ public class AuthServerApplication {
 		JsonAccountDTO jsonAccountDTO = getAccountDTO(user);
 		// rooms清單
 		List<JsonRoomDTO> jsonRoomDTOList = restTemplate
-				.exchange("http://" + JSON_SERVER_DOMAIN + "/rooms?classname=" + jsonAccountDTO.getClassName(),
+				.exchange("http://" + json_server_domain + "/rooms?classname=" + jsonAccountDTO.getClassName(),
 						HttpMethod.GET, null, new ParameterizedTypeReference<List<JsonRoomDTO>>() {
 						})
 				.getBody();
@@ -303,7 +305,7 @@ public class AuthServerApplication {
 		ReturnFriendDTO returnDTO = new ReturnFriendDTO();
 
 		List<JsonAccountDTO> accountDTOList = restTemplate
-				.exchange("http://" + JSON_SERVER_DOMAIN + "/users?studentNumber=" + user.getName(), HttpMethod.GET,
+				.exchange("http://" + json_server_domain + "/users?studentNumber=" + user.getName(), HttpMethod.GET,
 						null, new ParameterizedTypeReference<List<JsonAccountDTO>>() {
 						})
 				.getBody();
@@ -314,7 +316,7 @@ public class AuthServerApplication {
 
 		// 同學資料
 		List<JsonAccountDTO> classmateDTOList = restTemplate
-				.exchange("http://" + JSON_SERVER_DOMAIN + "/users?className=" + accountDTO.getClassName(),
+				.exchange("http://" + json_server_domain + "/users?className=" + accountDTO.getClassName(),
 						HttpMethod.GET, null, new ParameterizedTypeReference<List<JsonAccountDTO>>() {
 						})
 				.getBody();
@@ -322,7 +324,7 @@ public class AuthServerApplication {
 		List<UserRoomDTO> dataList = classmateDTOList.stream()
 				.filter(classmate -> !user.getName().equals(classmate.getStudentNumber())).map(classmate -> {
 					List<JsonRoomDTO> rooms = restTemplate
-							.exchange("http://" + JSON_SERVER_DOMAIN + "/rooms?q=" + classmate.getStudentNumber(),
+							.exchange("http://" + json_server_domain + "/rooms?q=" + classmate.getStudentNumber(),
 									HttpMethod.GET, null, new ParameterizedTypeReference<List<JsonRoomDTO>>() {
 									})
 							.getBody();
@@ -348,7 +350,7 @@ public class AuthServerApplication {
 		ReturnFriendDTO returnDTO = new ReturnFriendDTO();
 
 		List<JsonAccountDTO> accountDTOList = restTemplate
-				.exchange("http://" + JSON_SERVER_DOMAIN + "/users?studentNumber=" + user.getName(), HttpMethod.GET,
+				.exchange("http://" + json_server_domain + "/users?studentNumber=" + user.getName(), HttpMethod.GET,
 						null, new ParameterizedTypeReference<List<JsonAccountDTO>>() {
 						})
 				.getBody();
@@ -359,7 +361,7 @@ public class AuthServerApplication {
 
 		// 同學資料
 		List<JsonAccountDTO> classmateDTOList = restTemplate
-				.exchange("http://" + JSON_SERVER_DOMAIN + "/users?className=" + accountDTO.getClassName(),
+				.exchange("http://" + json_server_domain + "/users?className=" + accountDTO.getClassName(),
 						HttpMethod.GET, null, new ParameterizedTypeReference<List<JsonAccountDTO>>() {
 						})
 				.getBody();
@@ -377,7 +379,7 @@ public class AuthServerApplication {
 
 		// 個人清單
 		ResponseEntity<List<JsonRoomDTO>> roomDTOListResponse = restTemplate.exchange(
-				"http://" + JSON_SERVER_DOMAIN + "/rooms?q=" + user.getName(), HttpMethod.GET, null,
+				"http://" + json_server_domain + "/rooms?q=" + user.getName(), HttpMethod.GET, null,
 				new ParameterizedTypeReference<List<JsonRoomDTO>>() {
 				});
 		List<JsonRoomDTO> rooms = roomDTOListResponse.getBody();
@@ -415,7 +417,7 @@ public class AuthServerApplication {
 					json = new ObjectMapper().writeValueAsString(jsonRoomDTO);
 					HttpEntity<String> entity = new HttpEntity<>(json, headers);
 					String response = restTemplate
-							.postForEntity("http://" + JSON_SERVER_DOMAIN + "/rooms", entity, String.class).getBody();
+							.postForEntity("http://" + json_server_domain + "/rooms", entity, String.class).getBody();
 					logger.debug("response:" + response);
 				} catch (JsonProcessingException e) {
 
@@ -457,7 +459,7 @@ public class AuthServerApplication {
 					json = new ObjectMapper().writeValueAsString(jsonRoomDTO);
 					HttpEntity<String> entity = new HttpEntity<>(json, headers);
 					String response = restTemplate
-							.postForEntity("http://" + JSON_SERVER_DOMAIN + "/rooms", entity, String.class).getBody();
+							.postForEntity("http://" + json_server_domain + "/rooms", entity, String.class).getBody();
 					logger.debug("response:" + response);
 				} catch (JsonProcessingException e) {
 

@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +24,9 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
 	private RestTemplate restTemplate = new RestTemplate();
 
 	private Logger logger = LoggerFactory.getLogger(CustomAuthenticationProvider.class);
+	
+	@Value("${jsonserver.domain}")
+	private String json_server_domain;
 
 	@Override
 	public Authentication authenticate(Authentication authentication) throws AuthenticationException {
@@ -32,15 +36,12 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
 		logger.debug("name:{} password:{}", name, password);
 //		System.out.println("name:" + name + "password:" + password);
 		ResponseEntity<List<JsonAccountDTO>> rateResponse = restTemplate.exchange(
-				"http://"+AuthServerApplication.JSON_SERVER_DOMAIN+"/users?studentNumber=" + name, HttpMethod.GET, null,
+				"http://"+json_server_domain+"/users?studentNumber=" + name, HttpMethod.GET, null,
 				new ParameterizedTypeReference<List<JsonAccountDTO>>() {
 				});
 		List<JsonAccountDTO> accountDTOList = rateResponse.getBody();
 		JsonAccountDTO accountDTO = accountDTOList.get(0);
-		logger.debug("accountDTO.type={}",accountDTO.getType());
 		if (accountDTO.getPassword().equals(password)) {
-			// use the credentials
-			// and authenticate against the third-party system
 			return new UsernamePasswordAuthenticationToken(name, password, new ArrayList<>());
 		} else {
 			return null;

@@ -7,6 +7,10 @@ server:
 auth:
   data:
     path: /Users/Lendy/Documents/springcloud-git/auth-server/src/main/Docker/studentList.js
+
+jsonserver:
+    domain: localhost:3000
+
 ---
 
 spring:
@@ -17,3 +21,6 @@ spring:
 auth:
   data:
     path: /tmp/studentList.js
+
+jsonserver:
+      domain: json-server:3000
