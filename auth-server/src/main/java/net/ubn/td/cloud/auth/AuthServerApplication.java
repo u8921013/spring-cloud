@@ -95,16 +95,15 @@ public class AuthServerApplication {
 
 	@RequestMapping("/getRoomInfo/{roomId}")
 	public ReturnRoomDTO getRoomInfo(Principal user, @PathVariable(value = "roomId") String roomId) {
-		logger.debug("call getRoomInfo");
-
 		JsonRoomDTO jsonRoomDTO = restTemplate.getForObject("http://" + json_server_domain + "/rooms/" + roomId,
 				JsonRoomDTO.class);
 
 		ReturnRoomDTO returnDTO = new ReturnRoomDTO();
 		returnDTO.setId(roomId);
+		returnDTO.setGroupName(jsonRoomDTO.getGroupName());
 		returnDTO.setName(jsonRoomDTO.getName());
-
 		returnDTO.setMembers(new ArrayList<UserDTO>());
+
 		String connectedStudentNumber = "studentNumber=" + String.join("&studentNumber=", jsonRoomDTO.getMembers());
 		List<JsonAccountDTO> accountDTOList = restTemplate
 				.exchange("http://" + json_server_domain + "/users?" + connectedStudentNumber, HttpMethod.GET, null,
