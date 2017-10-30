@@ -42,6 +42,7 @@ import net.ubn.td.cloud.auth.dto.ReturnAccountDTO;
 import net.ubn.td.cloud.auth.dto.ReturnDTO;
 import net.ubn.td.cloud.auth.dto.ReturnFriendDTO;
 import net.ubn.td.cloud.auth.dto.ReturnRoomDTO;
+import net.ubn.td.cloud.auth.dto.ReturnUserDTO;
 import net.ubn.td.cloud.auth.dto.RoomDTO;
 import net.ubn.td.cloud.auth.dto.UserDTO;
 import net.ubn.td.cloud.auth.dto.UserRoomDTO;
@@ -297,10 +298,10 @@ public class AuthServerApplication {
 		System.out.println(lst);
 		return lst;
 	}
-
+	
 	@RequestMapping("/getRoomData")
 	public List<UserRoomDTO> getRoomData(Principal user) {
-		logger.debug("call getUserInfo");
+		logger.debug("call getRoomData");
 
 		ReturnFriendDTO returnDTO = new ReturnFriendDTO();
 
@@ -344,11 +345,10 @@ public class AuthServerApplication {
 	}
 
 	@RequestMapping("/getUserInfo")
-	public ReturnFriendDTO getLoginUserData(Principal user) {
+	public ReturnUserDTO getLoginUserData(Principal user) {
 		logger.debug("call getUserInfo");
-
-		ReturnFriendDTO returnDTO = new ReturnFriendDTO();
-
+		ReturnUserDTO returnDTO = new ReturnUserDTO();
+		
 		List<JsonAccountDTO> accountDTOList = restTemplate
 				.exchange("http://" + json_server_domain + "/users?studentNumber=" + user.getName(), HttpMethod.GET,
 						null, new ParameterizedTypeReference<List<JsonAccountDTO>>() {
@@ -386,6 +386,7 @@ public class AuthServerApplication {
 		List<RoomDTO> roomList = rooms.stream().map(jsonRoomDTO -> {
 			RoomDTO roomDTO = new RoomDTO();
 			roomDTO.setId(jsonRoomDTO.getId());
+			roomDTO.setGroupName(jsonRoomDTO.getGroupName());
 			roomDTO.setName(jsonRoomDTO.getName());
 			return roomDTO;
 		}).collect(Collectors.toList());
