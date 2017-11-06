@@ -6,6 +6,7 @@ public class ReturnAccountDTO {
 	
 	private String id;
 	private String studentNumber;
+	private String name;
 	private String password;
 	private String className;
 	private AccountType type;
@@ -54,6 +55,12 @@ public class ReturnAccountDTO {
 	}
 	public void setReadingTime(long readingTime) {
 		this.readingTime = readingTime;
+	}
+	public String getName() {
+		return name;
+	}
+	public void setName(String name) {
+		this.name = name;
 	}
 	
 	

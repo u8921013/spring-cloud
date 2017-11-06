@@ -4,13 +4,14 @@ spring:
 
 server:
   port: 8888
-auth:
-  data:
-    path: /Users/Lendy/Documents/springcloud-git/auth-server/src/main/Docker/studentList.js
-
+  
 jsonserver:
     domain: localhost:3000
 
+store:
+  image:
+     path: /Users/Lendy/Desktop/1224/
+     domainname: http://210.71.198.194/login/images/
 ---
 
 spring:
@@ -18,9 +19,9 @@ spring:
   cloud:
      config:
         uri: http://192.168.59.103:8888
-auth:
-  data:
-    path: /tmp/studentList.js
-
 jsonserver:
       domain: json-server:3000
+store:
+  image:
+     path: /images
+     domainname: http://210.71.198.194/login/images/

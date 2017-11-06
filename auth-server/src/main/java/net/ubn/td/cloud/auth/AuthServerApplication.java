@@ -1,11 +1,10 @@
 package net.ubn.td.cloud.auth;
 
 import java.io.File;
+import java.io.IOException;
 import java.security.Principal;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.apache.commons.io.FileUtils;
@@ -15,7 +14,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.annotation.Bean;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpEntity;
@@ -24,6 +22,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,10 +33,10 @@ import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import net.ubn.td.cloud.auth.dto.AccountDTO;
 import net.ubn.td.cloud.auth.dto.BookInfo;
 import net.ubn.td.cloud.auth.dto.CreateRoomDTO;
 import net.ubn.td.cloud.auth.dto.FriendDTO;
+import net.ubn.td.cloud.auth.dto.RequestAccountDTO;
 import net.ubn.td.cloud.auth.dto.ReturnAccountDTO;
 import net.ubn.td.cloud.auth.dto.ReturnDTO;
 import net.ubn.td.cloud.auth.dto.ReturnFriendDTO;
@@ -58,11 +57,16 @@ public class AuthServerApplication {
 	Logger logger = LoggerFactory.getLogger(AuthServerApplication.class);
 
 	private RestTemplate restTemplate = new RestTemplate();
-	
+
 	@Value("${jsonserver.domain}")
 	private String json_server_domain;
-	
-	
+
+	@Value("${store.image.path}")
+	private String image_storepath;
+
+	@Value("${store.image.domainname}")
+	private String image_domain;
+
 	@Autowired
 	private Environment env;
 
@@ -122,6 +126,8 @@ public class AuthServerApplication {
 	}
 
 	private JsonAccountDTO getAccountDTO(Principal user) {
+		logger.info("request accountDTO :{}",
+				"http://" + json_server_domain + "/users?studentNumber=" + user.getName());
 		List<JsonAccountDTO> accountDTOList = restTemplate
 				.exchange("http://" + json_server_domain + "/users?studentNumber=" + user.getName(), HttpMethod.GET,
 						null, new ParameterizedTypeReference<List<JsonAccountDTO>>() {
@@ -143,9 +149,11 @@ public class AuthServerApplication {
 				.getBody();
 		List<ReturnAccountDTO> returnDTOList = classmateDTOList.stream().map(classmate -> {
 			ReturnAccountDTO returnDTO = new ReturnAccountDTO();
+			returnDTO.setId(classmate.getId());
 			returnDTO.setStudentNumber(classmate.getStudentNumber());
 			returnDTO.setPassword(classmate.getPassword());
 			returnDTO.setClassName(classmate.getClassName());
+			returnDTO.setName(classmate.getName());
 			returnDTO.setImg(classmate.getImg());
 			return returnDTO;
 		}).collect(Collectors.toList());
@@ -154,16 +162,16 @@ public class AuthServerApplication {
 
 	@RequestMapping(path = "/findClassmate/{stuentNumber}", method = RequestMethod.GET)
 	public ReturnAccountDTO findClassmateByStuentNumber(@PathVariable("stuentNumber") String strStuentNumber) {
-		
+
 		List<JsonAccountDTO> accountDTOList = restTemplate
-				.exchange("http://" + json_server_domain + "/users?studentNumber=" +strStuentNumber, HttpMethod.GET,
+				.exchange("http://" + json_server_domain + "/users?studentNumber=" + strStuentNumber, HttpMethod.GET,
 						null, new ParameterizedTypeReference<List<JsonAccountDTO>>() {
 						})
 				.getBody();
 
 		JsonAccountDTO accountDTO = accountDTOList.get(0);
-		
-		ReturnAccountDTO returnDTO=new ReturnAccountDTO();
+
+		ReturnAccountDTO returnDTO = new ReturnAccountDTO();
 		returnDTO.setId(accountDTO.getId());
 		returnDTO.setStudentNumber(accountDTO.getStudentNumber());
 		returnDTO.setPassword(accountDTO.getPassword());
@@ -174,29 +182,46 @@ public class AuthServerApplication {
 	}
 
 	@RequestMapping(path = "/createClassmate", method = RequestMethod.POST)
-	public ReturnDTO createClassmate(Principal user, @RequestBody ReturnAccountDTO paramDTO) {
-		logger.debug("[createClassmate] studentNumber={}",paramDTO.getStudentNumber());
-		logger.debug("[createClassmate] password={}",paramDTO.getPassword());
-		logger.debug("[createClassmate] image={}",paramDTO.getImg());
-		
+	public ReturnDTO createClassmate(Principal user, @RequestBody RequestAccountDTO paramDTO) {
+		logger.debug("[createClassmate] studentNumber={}", paramDTO.getStudentNumber());
+		logger.debug("[createClassmate] password={}", paramDTO.getPassword());
+		logger.debug("[createClassmate] name={}", paramDTO.getName());
+		logger.debug("[createClassmate]  imageName={}", paramDTO.getImgName());
+		// logger.debug("[createClassmate] image={}",paramDTO.getImg());
+
 		JsonAccountDTO loginAccountDTO = getAccountDTO(user);
-		
+		byte[] imageBytes = javax.xml.bind.DatatypeConverter.parseBase64Binary(paramDTO.getImg());
+		String ext = paramDTO.getImgName().substring(paramDTO.getImgName().indexOf(".") + 1);
+		String imageName = paramDTO.getStudentNumber() + "." + ext;
+		try {
+			File dictFile = new File(new File(image_storepath), loginAccountDTO.getClassName());
+			if (!dictFile.exists()) {
+				dictFile.mkdirs();
+			}
+			File imageFile = new File(dictFile, imageName);
+			logger.debug("write image file:{}", imageFile);
+			FileUtils.writeByteArrayToFile(imageFile, imageBytes);
+		} catch (IOException e1) {
+
+		}
+
 		HttpHeaders headers = new HttpHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
 
 		JsonAccountDTO jsonAccountDTO = new JsonAccountDTO();
 		jsonAccountDTO.setStudentNumber(paramDTO.getStudentNumber());
 		jsonAccountDTO.setPassword(paramDTO.getPassword());
+		jsonAccountDTO.setName(paramDTO.getName());
 		jsonAccountDTO.setClassName(loginAccountDTO.getClassName());
 		jsonAccountDTO.setType(AccountType.student);
 
-		jsonAccountDTO.setImg(paramDTO.getImg());
+		jsonAccountDTO.setImg(image_domain + loginAccountDTO.getClassName() + "/" + imageName);
 		// Jackson ObjectMapper to convert requestBody to JSON
-		ReturnDTO returnDTO=new ReturnDTO();
+		ReturnDTO returnDTO = new ReturnDTO();
 		String json;
 		try {
 			json = new ObjectMapper().writeValueAsString(jsonAccountDTO);
-			logger.debug("json="+json);
+			logger.debug("json=" + json);
 			HttpEntity<String> entity = new HttpEntity<>(json, headers);
 			String response = restTemplate
 					.postForEntity("http://" + json_server_domain + "/users", entity, String.class).getBody();
@@ -207,63 +232,68 @@ public class AuthServerApplication {
 			returnDTO.setCode(-1);
 			returnDTO.setMessage("Fail");
 		}
-		
+
 		return returnDTO;
 	}
-	@RequestMapping(path = "/deleteClassmate", method = RequestMethod.POST)
-	public ReturnDTO deleteClassmate(Principal user, @RequestBody String strStudentNumber) {
-//		JsonAccountDTO loginAccountDTO = getAccountDTO(user);
-		
-		ReturnDTO returnDTO=new ReturnDTO();
+
+	@RequestMapping(path = "/deleteClassmate/{id}", method = RequestMethod.POST)
+	public ReturnDTO deleteClassmate(Principal user, @PathVariable(name = "id") String id) {
+		logger.debug("deleteClassmate id={}", id);
+		ReturnDTO returnDTO = new ReturnDTO();
 		try {
-			
-			List<JsonAccountDTO> accountDTOList = restTemplate
-					.exchange("http://" + json_server_domain + "/users?studentNumber=" + strStudentNumber, HttpMethod.GET,
-							null, new ParameterizedTypeReference<List<JsonAccountDTO>>() {
-							})
-					.getBody();
-			accountDTOList.stream().forEach(account->{
-				String url="http://" + json_server_domain + "/users/"+account.getId();
-				logger.debug("url="+url);
-				restTemplate.delete(url);
-			});
-			
+			String url = "http://" + json_server_domain + "/users/" + id;
+			logger.debug("deleteClassmate url={}", url);
+			restTemplate.delete(url);
 			returnDTO.setCode(0);
 			returnDTO.setMessage("success");
 		} catch (Exception e) {
 			returnDTO.setCode(-1);
 			returnDTO.setMessage("Fail");
 		}
-		
 		return returnDTO;
 	}
-	
+
 	@RequestMapping(path = "/updateClassmate", method = RequestMethod.POST)
-	public ReturnDTO updataClassmate(Principal user, @RequestBody ReturnAccountDTO paramDTO) {
+	public ReturnDTO updataClassmate(Principal user, @RequestBody RequestAccountDTO paramDTO) {
 		JsonAccountDTO loginAccountDTO = getAccountDTO(user);
-		logger.debug("[updataClassmate] studentNumber={}",paramDTO.getStudentNumber());
-		logger.debug("[updataClassmate] password={}",paramDTO.getPassword());
-		logger.debug("[updataClassmate] image={}",paramDTO.getImg());
-		
+		logger.debug("[updataClassmate] studentNumber={}", paramDTO.getStudentNumber());
+		logger.debug("[updataClassmate] password={}", paramDTO.getPassword());
+
+		String url = "http://" + json_server_domain + "/users/" + paramDTO.getId();
+		logger.debug("[updataClassmate] url={}", url);
+		JsonAccountDTO jsonAccountDTO = restTemplate.getForObject(url, JsonAccountDTO.class);
+
+		if (!StringUtils.isEmpty(paramDTO.getImg())) {
+			byte[] imageBytes = javax.xml.bind.DatatypeConverter.parseBase64Binary(paramDTO.getImg());
+			String ext = paramDTO.getImgName().substring(paramDTO.getImgName().indexOf(".") + 1);
+			String imageName = paramDTO.getStudentNumber() + "." + ext;
+			try {
+				File dictFile = new File(new File(image_storepath), loginAccountDTO.getClassName());
+				if (!dictFile.exists()) {
+					dictFile.mkdirs();
+				}
+				File imageFile = new File(dictFile, imageName);
+				logger.debug("write image file:{}", imageFile);
+				FileUtils.writeByteArrayToFile(imageFile, imageBytes);
+			} catch (IOException e1) {
+
+			}
+		}
 		HttpHeaders headers = new HttpHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
 
-		JsonAccountDTO jsonAccountDTO = new JsonAccountDTO();
 		jsonAccountDTO.setStudentNumber(paramDTO.getStudentNumber());
 		jsonAccountDTO.setPassword(paramDTO.getPassword());
-		jsonAccountDTO.setClassName(loginAccountDTO.getClassName());
-		jsonAccountDTO.setImg(paramDTO.getImg());
-		jsonAccountDTO.setType(AccountType.teacher);
+		jsonAccountDTO.setName(paramDTO.getName());
+		jsonAccountDTO.setType(AccountType.student);
+		ReturnDTO returnDTO = new ReturnDTO();
 
-		jsonAccountDTO.setImg(paramDTO.getImg());
-		ReturnDTO returnDTO=new ReturnDTO();
-		// Jackson ObjectMapper to convert requestBody to JSON
 		String json;
 		try {
 			json = new ObjectMapper().writeValueAsString(jsonAccountDTO);
 			HttpEntity<String> entity = new HttpEntity<>(json, headers);
-			String url="http://" + json_server_domain + "/users/"+paramDTO.getId();
-			String response=restTemplate.exchange(url, HttpMethod.PUT, entity, String.class).getBody();
+
+			String response = restTemplate.exchange(url, HttpMethod.PUT, entity, String.class).getBody();
 			logger.debug(response);
 			returnDTO.setCode(0);
 			returnDTO.setMessage("success");
@@ -271,7 +301,7 @@ public class AuthServerApplication {
 			returnDTO.setCode(-1);
 			returnDTO.setMessage("Fail");
 		}
-		
+
 		return returnDTO;
 	}
 
@@ -297,7 +327,7 @@ public class AuthServerApplication {
 		System.out.println(lst);
 		return lst;
 	}
-	
+
 	@RequestMapping("/getRoomData")
 	public List<UserRoomDTO> getRoomData(Principal user) {
 		logger.debug("call getRoomData");
@@ -347,7 +377,7 @@ public class AuthServerApplication {
 	public ReturnUserDTO getLoginUserData(Principal user) {
 		logger.debug("call getUserInfo");
 		ReturnUserDTO returnDTO = new ReturnUserDTO();
-		
+
 		List<JsonAccountDTO> accountDTOList = restTemplate
 				.exchange("http://" + json_server_domain + "/users?studentNumber=" + user.getName(), HttpMethod.GET,
 						null, new ParameterizedTypeReference<List<JsonAccountDTO>>() {
@@ -583,22 +613,4 @@ public class AuthServerApplication {
 		return reusltList;
 	}
 
-	@Bean
-	public Map<String, AccountDTO> userInfos() {
-		try {
-			String json = FileUtils.readFileToString(new File(env.getProperty("auth.data.path")), "UTF-8");
-			ObjectMapper mapper = new ObjectMapper();
-			Map<String, AccountDTO> storeMap = new HashMap<>();
-			AccountDTO[] dataList = mapper.readValue(json.replaceAll("'", "\""), AccountDTO[].class);
-			for (AccountDTO data : dataList) {
-				System.out.println("data=" + data.getStudentNumber());
-				storeMap.put(data.getStudentNumber(), data);
-			}
-			return storeMap;
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			return new HashMap<String, AccountDTO>();
-		}
-	}
 }
