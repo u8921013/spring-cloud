@@ -182,19 +182,18 @@ public class AuthServerApplication {
 	}
 
 	@RequestMapping(path = "/createClassmate", method = RequestMethod.POST)
-	public ReturnDTO createClassmate(Principal user, @RequestBody RequestAccountDTO paramDTO) {
+	public ReturnDTO createClassmate(@RequestBody RequestAccountDTO paramDTO) {
 		logger.debug("[createClassmate] studentNumber={}", paramDTO.getStudentNumber());
 		logger.debug("[createClassmate] password={}", paramDTO.getPassword());
 		logger.debug("[createClassmate] name={}", paramDTO.getName());
 		logger.debug("[createClassmate]  imageName={}", paramDTO.getImgName());
 		// logger.debug("[createClassmate] image={}",paramDTO.getImg());
 
-		JsonAccountDTO loginAccountDTO = getAccountDTO(user);
 		byte[] imageBytes = javax.xml.bind.DatatypeConverter.parseBase64Binary(paramDTO.getImg());
 		String ext = paramDTO.getImgName().substring(paramDTO.getImgName().indexOf(".") + 1);
 		String imageName = paramDTO.getStudentNumber() + "." + ext;
 		try {
-			File dictFile = new File(new File(image_storepath), loginAccountDTO.getClassName());
+			File dictFile = new File(new File(image_storepath), paramDTO.getClassName());
 			if (!dictFile.exists()) {
 				dictFile.mkdirs();
 			}
@@ -212,10 +211,10 @@ public class AuthServerApplication {
 		jsonAccountDTO.setStudentNumber(paramDTO.getStudentNumber());
 		jsonAccountDTO.setPassword(paramDTO.getPassword());
 		jsonAccountDTO.setName(paramDTO.getName());
-		jsonAccountDTO.setClassName(loginAccountDTO.getClassName());
+		jsonAccountDTO.setClassName(paramDTO.getClassName());
 		jsonAccountDTO.setType(AccountType.student);
 
-		jsonAccountDTO.setImg(image_domain + loginAccountDTO.getClassName() + "/" + imageName);
+		jsonAccountDTO.setImg(image_domain + paramDTO.getClassName() + "/" + imageName);
 		// Jackson ObjectMapper to convert requestBody to JSON
 		ReturnDTO returnDTO = new ReturnDTO();
 		String json;
@@ -237,7 +236,7 @@ public class AuthServerApplication {
 	}
 
 	@RequestMapping(path = "/deleteClassmate/{id}", method = RequestMethod.POST)
-	public ReturnDTO deleteClassmate(Principal user, @PathVariable(name = "id") String id) {
+	public ReturnDTO deleteClassmate(@PathVariable(name = "id") String id) {
 		logger.debug("deleteClassmate id={}", id);
 		ReturnDTO returnDTO = new ReturnDTO();
 		try {
@@ -254,8 +253,7 @@ public class AuthServerApplication {
 	}
 
 	@RequestMapping(path = "/updateClassmate", method = RequestMethod.POST)
-	public ReturnDTO updataClassmate(Principal user, @RequestBody RequestAccountDTO paramDTO) {
-		JsonAccountDTO loginAccountDTO = getAccountDTO(user);
+	public ReturnDTO updataClassmate(@RequestBody RequestAccountDTO paramDTO) {
 		logger.debug("[updataClassmate] studentNumber={}", paramDTO.getStudentNumber());
 		logger.debug("[updataClassmate] password={}", paramDTO.getPassword());
 
@@ -268,7 +266,7 @@ public class AuthServerApplication {
 			String ext = paramDTO.getImgName().substring(paramDTO.getImgName().indexOf(".") + 1);
 			String imageName = paramDTO.getStudentNumber() + "." + ext;
 			try {
-				File dictFile = new File(new File(image_storepath), loginAccountDTO.getClassName());
+				File dictFile = new File(new File(image_storepath), paramDTO.getClassName());
 				if (!dictFile.exists()) {
 					dictFile.mkdirs();
 				}

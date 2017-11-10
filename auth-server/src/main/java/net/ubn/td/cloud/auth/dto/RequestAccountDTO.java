@@ -8,6 +8,7 @@ public class RequestAccountDTO {
 	private String name;
 	private String password;
 	private AccountType type;
+	private String className;
 	private String img;
 	private String imgName;
 	
@@ -52,5 +53,11 @@ public class RequestAccountDTO {
 	}
 	public void setImgName(String imgName) {
 		this.imgName = imgName;
+	}
+	public String getClassName() {
+		return className;
+	}
+	public void setClassName(String className) {
+		this.className = className;
 	}
 }
