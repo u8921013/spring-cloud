@@ -306,15 +306,16 @@ public class AuthServerApplication {
 	}
 
 	@RequestMapping("/getRoomHeader/{className}")
-	public List<String> getRoomListByClassName(@PathVariable(value = "className") String className) {
-
+	public List<String> getRoomHeader(@PathVariable(value = "className") String className) {
+		String url="http://" + json_server_domain + "/rooms?className=" + className;
+		logger.debug("[getRoomHeader] url:{} ",url);
 		// rooms清單
 		List<JsonRoomDTO> jsonRoomDTOList = restTemplate
-				.exchange("http://" + json_server_domain + "/rooms?classname=" + className, HttpMethod.GET, null,
+				.exchange(url, HttpMethod.GET, null,
 						new ParameterizedTypeReference<List<JsonRoomDTO>>() {
 						})
 				.getBody();
-
+	
 		List<String> lst = new ArrayList<>();
 		jsonRoomDTOList.stream().forEach(jsonRoomDTO -> {
 			String strGroupName = jsonRoomDTO.getGroupName();
