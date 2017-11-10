@@ -20,8 +20,8 @@ spring:
      config:
         uri: http://192.168.59.103:8888
 jsonserver:
-      domain: json-server:3000
+      domain: parent-host:3000
 store:
   image:
      path: /images
-     domainname: http://120.125.83.31/login/images/
+     domainname: http://120.125.83.31/images/

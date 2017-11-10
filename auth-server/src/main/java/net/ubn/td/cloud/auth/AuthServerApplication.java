@@ -147,7 +147,7 @@ public class AuthServerApplication {
 						new ParameterizedTypeReference<List<JsonAccountDTO>>() {
 						})
 				.getBody();
-		List<ReturnAccountDTO> returnDTOList = classmateDTOList.stream().map(classmate -> {
+		List<ReturnAccountDTO> returnDTOList = classmateDTOList.stream().filter(o->o.getType().equals(AccountType.student)).map(classmate -> {
 			ReturnAccountDTO returnDTO = new ReturnAccountDTO();
 			returnDTO.setId(classmate.getId());
 			returnDTO.setStudentNumber(classmate.getStudentNumber());
@@ -274,7 +274,7 @@ public class AuthServerApplication {
 				logger.debug("write image file:{}", imageFile);
 				FileUtils.writeByteArrayToFile(imageFile, imageBytes);
 			} catch (IOException e1) {
-
+				logger.error("apple",e1);
 			}
 		}
 		HttpHeaders headers = new HttpHeaders();
