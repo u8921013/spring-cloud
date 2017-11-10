@@ -29,24 +29,22 @@ public class ResourceServerConfiguration extends ResourceServerConfigurerAdapter
          http
          .requestMatchers()
          .antMatchers("/me")
-         .antMatchers("/testAdd") 
          .antMatchers("/userInfo")
          .antMatchers("/bookInfo/**")
          .antMatchers("/getFriends")
          .antMatchers("/userInfo")
          .antMatchers("/getRoomInfo/**")
          .antMatchers("/getUserInfo")
-         .antMatchers("/getRoomData")
+         .antMatchers("/getRoomData/**")
          .antMatchers("/createRoom")
-         .antMatchers("/getRoomHeader")
-         .antMatchers("/listClassmates")
+         .antMatchers("/getRoomHeader/**")
+         .antMatchers("/listClassmates/**")
          .antMatchers("/findClassmate/**")
          .antMatchers("/createClassmate")
          .antMatchers("/updateClassmate")
          .antMatchers("/deleteClassmate/**")
          .and()
          .authorizeRequests()
-         .antMatchers("/testAdd").access("#oauth2.hasScope('read')")
          .antMatchers("/me").access("#oauth2.hasScope('read')");
          // @formatter:on
     }

@@ -5,14 +5,20 @@ import java.util.Map;
 
 public class CreateRoomDTO {
 	
-	private String name;
+	private String className;
+	private String groupName;
 	private Map<String,List<String>> rooms;
-	
-	public String getName() {
-		return name;
+	public String getClassName() {
+		return className;
 	}
-	public void setName(String name) {
-		this.name = name;
+	public void setClassName(String className) {
+		this.className = className;
+	}
+	public String getGroupName() {
+		return groupName;
+	}
+	public void setGroupName(String groupName) {
+		this.groupName = groupName;
 	}
 	public Map<String, List<String>> getRooms() {
 		return rooms;
@@ -20,7 +26,4 @@ public class CreateRoomDTO {
 	public void setRooms(Map<String, List<String>> rooms) {
 		this.rooms = rooms;
 	}
-	
-	
-	
 }
