@@ -3,6 +3,8 @@ package net.ubn.td.cloud.auth;
 import java.io.File;
 import java.io.IOException;
 import java.security.Principal;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -264,15 +266,17 @@ public class AuthServerApplication {
 		if (!StringUtils.isEmpty(paramDTO.getImg())) {
 			byte[] imageBytes = javax.xml.bind.DatatypeConverter.parseBase64Binary(paramDTO.getImg());
 			String ext = paramDTO.getImgName().substring(paramDTO.getImgName().indexOf(".") + 1);
-			String imageName = paramDTO.getStudentNumber() + "." + ext;
+			
+			String strNow=LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+			String imageName = paramDTO.getStudentNumber()+strNow + "." + ext;
 			try {
 				File dictFile = new File(new File(image_storepath), paramDTO.getClassName());
 				if (!dictFile.exists()) {
 					dictFile.mkdirs();
 				}
 				File imageFile = new File(dictFile, imageName);
-				logger.debug("write image file:{}", imageFile);
 				FileUtils.writeByteArrayToFile(imageFile, imageBytes);
+				jsonAccountDTO.setImg(image_domain + paramDTO.getClassName() + "/" + imageName);
 			} catch (IOException e1) {
 				logger.error("apple",e1);
 			}
@@ -347,9 +351,12 @@ public class AuthServerApplication {
 									HttpMethod.GET, null, new ParameterizedTypeReference<List<JsonRoomDTO>>() {
 									})
 							.getBody();
-					List<ReturnRoomDTO> roomIds = rooms.stream().map(room -> {
+					List<ReturnRoomDTO> roomIds = rooms.stream()
+							.filter(room->room.getMembers().contains(classmate.getStudentNumber()))
+							.map(room -> {
 						ReturnRoomDTO returnRoomDTO = new ReturnRoomDTO();
 						returnRoomDTO.setId(room.getId());
+						returnRoomDTO.setGroupName(room.getGroupName());
 						returnRoomDTO.setName(room.getName());
 						return returnRoomDTO;
 					}).collect(Collectors.toList());
