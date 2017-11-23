@@ -120,7 +120,7 @@ public class AuthServerApplication {
 		for (JsonAccountDTO roomMember : accountDTOList) {
 			UserDTO userDTO = new UserDTO();
 			userDTO.setImg(roomMember.getImg());
-			userDTO.setName(roomMember.getStudentNumber());
+			userDTO.setName(roomMember.getName());
 			userDTO.setStudentNumber(roomMember.getStudentNumber());
 			returnDTO.getMembers().add(userDTO);
 		}
@@ -396,7 +396,7 @@ public class AuthServerApplication {
 				.filter(classmate -> !user.getName().equals(classmate.getStudentNumber())).map(classmate -> {
 					FriendDTO dto = new FriendDTO();
 					dto.setStudentNumber(classmate.getStudentNumber());
-					dto.setName(classmate.getStudentNumber());
+					dto.setName(classmate.getName());
 					dto.setImg(classmate.getImg());
 					return dto;
 				}).collect(Collectors.toList());
