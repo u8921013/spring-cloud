@@ -37,6 +37,7 @@ public class ResourceServerConfiguration extends ResourceServerConfigurerAdapter
          .antMatchers("/getUserInfo")
          .antMatchers("/getRoomData/**")
          .antMatchers("/createRoom")
+         .antMatchers("/suspendRoom")
          .antMatchers("/getRoomHeader/**")
          .antMatchers("/listClassmates/**")
          .antMatchers("/findClassmate/**")

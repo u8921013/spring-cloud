@@ -6,6 +6,7 @@ public class ReturnUserDTO {
 	private String studentNumber;
 	private String classname;
 	private String img;
+	private String name;
 	private List<FriendDTO> friends;
 	private List<RoomDTO> rooms;
 	
@@ -38,6 +39,12 @@ public class ReturnUserDTO {
 	}
 	public void setRooms(List<RoomDTO> rooms) {
 		this.rooms = rooms;
+	}
+	public String getName() {
+		return name;
+	}
+	public void setName(String name) {
+		this.name = name;
 	}
 
 

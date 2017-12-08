@@ -3,6 +3,7 @@ package net.ubn.td.cloud.auth;
 import java.io.File;
 import java.io.IOException;
 import java.security.Principal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -45,8 +46,10 @@ import net.ubn.td.cloud.auth.dto.ReturnFriendDTO;
 import net.ubn.td.cloud.auth.dto.ReturnRoomDTO;
 import net.ubn.td.cloud.auth.dto.ReturnUserDTO;
 import net.ubn.td.cloud.auth.dto.RoomDTO;
+import net.ubn.td.cloud.auth.dto.SuspendRoomDTO;
 import net.ubn.td.cloud.auth.dto.UserDTO;
 import net.ubn.td.cloud.auth.dto.UserRoomDTO;
+import net.ubn.td.cloud.auth.dto.UserRoomHeaderDTO;
 import net.ubn.td.cloud.auth.jsonserver.dto.AccountType;
 import net.ubn.td.cloud.auth.jsonserver.dto.JsonAccountDTO;
 import net.ubn.td.cloud.auth.jsonserver.dto.JsonRoomDTO;
@@ -149,16 +152,17 @@ public class AuthServerApplication {
 						new ParameterizedTypeReference<List<JsonAccountDTO>>() {
 						})
 				.getBody();
-		List<ReturnAccountDTO> returnDTOList = classmateDTOList.stream().filter(o->o.getType().equals(AccountType.student)).map(classmate -> {
-			ReturnAccountDTO returnDTO = new ReturnAccountDTO();
-			returnDTO.setId(classmate.getId());
-			returnDTO.setStudentNumber(classmate.getStudentNumber());
-			returnDTO.setPassword(classmate.getPassword());
-			returnDTO.setClassName(classmate.getClassName());
-			returnDTO.setName(classmate.getName());
-			returnDTO.setImg(classmate.getImg());
-			return returnDTO;
-		}).collect(Collectors.toList());
+		List<ReturnAccountDTO> returnDTOList = classmateDTOList.stream()
+				.filter(o -> o.getType().equals(AccountType.student)).map(classmate -> {
+					ReturnAccountDTO returnDTO = new ReturnAccountDTO();
+					returnDTO.setId(classmate.getId());
+					returnDTO.setStudentNumber(classmate.getStudentNumber());
+					returnDTO.setPassword(classmate.getPassword());
+					returnDTO.setClassName(classmate.getClassName());
+					returnDTO.setName(classmate.getName());
+					returnDTO.setImg(classmate.getImg());
+					return returnDTO;
+				}).collect(Collectors.toList());
 		return returnDTOList;
 	}
 
@@ -266,9 +270,9 @@ public class AuthServerApplication {
 		if (!StringUtils.isEmpty(paramDTO.getImg())) {
 			byte[] imageBytes = javax.xml.bind.DatatypeConverter.parseBase64Binary(paramDTO.getImg());
 			String ext = paramDTO.getImgName().substring(paramDTO.getImgName().indexOf(".") + 1);
-			
-			String strNow=LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-			String imageName = paramDTO.getStudentNumber()+strNow + "." + ext;
+
+			String strNow = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+			String imageName = paramDTO.getStudentNumber() + strNow + "." + ext;
 			try {
 				File dictFile = new File(new File(image_storepath), paramDTO.getClassName());
 				if (!dictFile.exists()) {
@@ -278,7 +282,7 @@ public class AuthServerApplication {
 				FileUtils.writeByteArrayToFile(imageFile, imageBytes);
 				jsonAccountDTO.setImg(image_domain + paramDTO.getClassName() + "/" + imageName);
 			} catch (IOException e1) {
-				logger.error("apple",e1);
+				logger.error("apple", e1);
 			}
 		}
 		HttpHeaders headers = new HttpHeaders();
@@ -308,26 +312,30 @@ public class AuthServerApplication {
 	}
 
 	@RequestMapping("/getRoomHeader/{className}")
-	public List<String> getRoomHeader(@PathVariable(value = "className") String className) {
-		String url="http://" + json_server_domain + "/rooms?className=" + className;
-		logger.debug("[getRoomHeader] url:{} ",url);
+	public List<UserRoomHeaderDTO> getRoomHeader(@PathVariable(value = "className") String className) {
+		String url = "http://" + json_server_domain + "/rooms?className=" + className;
+		logger.debug("[getRoomHeader] url:{} ", url);
 		// rooms清單
 		List<JsonRoomDTO> jsonRoomDTOList = restTemplate
-				.exchange(url, HttpMethod.GET, null,
-						new ParameterizedTypeReference<List<JsonRoomDTO>>() {
-						})
-				.getBody();
-	
+				.exchange(url, HttpMethod.GET, null, new ParameterizedTypeReference<List<JsonRoomDTO>>() {
+				}).getBody();
+
+		List<UserRoomHeaderDTO> returnList=new ArrayList<>();
 		List<String> lst = new ArrayList<>();
 		jsonRoomDTOList.stream().forEach(jsonRoomDTO -> {
 			String strGroupName = jsonRoomDTO.getGroupName();
 			// String strName = jsonRoomDTO.getName();
 			if (!lst.contains(strGroupName)) {
 				lst.add(strGroupName);
+				UserRoomHeaderDTO newDTO=new UserRoomHeaderDTO();
+				newDTO.setGroupName(strGroupName);
+				newDTO.setStartDate(jsonRoomDTO.getStartDate());
+				newDTO.setEndDate(jsonRoomDTO.getEndDate());
+				returnList.add(newDTO);
 			}
 		});
-		logger.debug("getRoomListByClassName({}) result:{}", className, lst);
-		return lst;
+		logger.debug("getRoomHeader({}) result:{}", className, lst);
+		return returnList;
 	}
 
 	@RequestMapping("/getRoomData/{className}")
@@ -345,21 +353,20 @@ public class AuthServerApplication {
 		returnDTO.setFriends(new ArrayList<FriendDTO>());
 		List<UserRoomDTO> dataList = classmateDTOList.stream()
 				.filter(classmate -> classmate.getType().equals(AccountType.student)).map(classmate -> {
-					logger.debug("name={} type()={}",classmate.getStudentNumber(),classmate.getType());
+					logger.debug("name={} type()={}", classmate.getStudentNumber(), classmate.getType());
 					List<JsonRoomDTO> rooms = restTemplate
 							.exchange("http://" + json_server_domain + "/rooms?q=" + classmate.getStudentNumber(),
 									HttpMethod.GET, null, new ParameterizedTypeReference<List<JsonRoomDTO>>() {
 									})
 							.getBody();
 					List<ReturnRoomDTO> roomIds = rooms.stream()
-							.filter(room->room.getMembers().contains(classmate.getStudentNumber()))
-							.map(room -> {
-						ReturnRoomDTO returnRoomDTO = new ReturnRoomDTO();
-						returnRoomDTO.setId(room.getId());
-						returnRoomDTO.setGroupName(room.getGroupName());
-						returnRoomDTO.setName(room.getName());
-						return returnRoomDTO;
-					}).collect(Collectors.toList());
+							.filter(room -> room.getMembers().contains(classmate.getStudentNumber())).map(room -> {
+								ReturnRoomDTO returnRoomDTO = new ReturnRoomDTO();
+								returnRoomDTO.setId(room.getId());
+								returnRoomDTO.setGroupName(room.getGroupName());
+								returnRoomDTO.setName(room.getName());
+								return returnRoomDTO;
+							}).collect(Collectors.toList());
 					UserRoomDTO userRoomDTO = new UserRoomDTO();
 					userRoomDTO.setStudentNumber(classmate.getStudentNumber());
 					userRoomDTO.setRooms(roomIds);
@@ -408,7 +415,8 @@ public class AuthServerApplication {
 				new ParameterizedTypeReference<List<JsonRoomDTO>>() {
 				});
 		List<JsonRoomDTO> rooms = roomDTOListResponse.getBody();
-		List<RoomDTO> roomList = rooms.stream().map(jsonRoomDTO -> {
+		List<RoomDTO> roomList = rooms.stream().filter(room->room.getEndDate()==null)
+				.map(jsonRoomDTO -> {
 			RoomDTO roomDTO = new RoomDTO();
 			roomDTO.setId(jsonRoomDTO.getId());
 			roomDTO.setGroupName(jsonRoomDTO.getGroupName());
@@ -419,53 +427,99 @@ public class AuthServerApplication {
 		return returnDTO;
 	}
 
-//	@RequestMapping(path = "/createPerson", method = RequestMethod.POST)
-//	public ReturnDTO createPerson(Principal user, @RequestBody CreateRoomDTO createRoomDTO) {
-//		logger.debug("[createRoomDTO] name={}", createRoomDTO.getName());
-//		logger.debug("[createRoomDTO] rooms={}", createRoomDTO.getRooms());
-//		JsonAccountDTO jsonAccountDTO = getAccountDTO(user);
-//		try {
-//			createRoomDTO.getRooms().keySet().stream().forEach(roomIndex -> {
-//				List<String> members = createRoomDTO.getRooms().get(roomIndex);
-//				System.out.println("member=" + members);
-//
-//				HttpHeaders headers = new HttpHeaders();
-//				headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
-//
-//				JsonRoomDTO jsonRoomDTO = new JsonRoomDTO();
-//				jsonRoomDTO.setClassName(jsonAccountDTO.getClassName());
-//				jsonRoomDTO.setGroupName(createRoomDTO.getName());
-//				jsonRoomDTO.setName("第" + roomIndex + "組");
-//				jsonRoomDTO.setMembers(members);
-//				// Jackson ObjectMapper to convert requestBody to JSON
-//				String json;
-//				try {
-//					json = new ObjectMapper().writeValueAsString(jsonRoomDTO);
-//					HttpEntity<String> entity = new HttpEntity<>(json, headers);
-//					String response = restTemplate
-//							.postForEntity("http://" + json_server_domain + "/rooms", entity, String.class).getBody();
-//					logger.debug("response:" + response);
-//				} catch (JsonProcessingException e) {
-//
-//				}
-//			});
-//		} catch (Exception e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
-//
-//		ReturnDTO returnDTO = new ReturnDTO();
-//		returnDTO.setCode(0);
-//		returnDTO.setMessage("success");
-//
-//		return returnDTO;
-//	}
+	// @RequestMapping(path = "/createPerson", method = RequestMethod.POST)
+	// public ReturnDTO createPerson(Principal user, @RequestBody CreateRoomDTO
+	// createRoomDTO) {
+	// logger.debug("[createRoomDTO] name={}", createRoomDTO.getName());
+	// logger.debug("[createRoomDTO] rooms={}", createRoomDTO.getRooms());
+	// JsonAccountDTO jsonAccountDTO = getAccountDTO(user);
+	// try {
+	// createRoomDTO.getRooms().keySet().stream().forEach(roomIndex -> {
+	// List<String> members = createRoomDTO.getRooms().get(roomIndex);
+	// System.out.println("member=" + members);
+	//
+	// HttpHeaders headers = new HttpHeaders();
+	// headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
+	//
+	// JsonRoomDTO jsonRoomDTO = new JsonRoomDTO();
+	// jsonRoomDTO.setClassName(jsonAccountDTO.getClassName());
+	// jsonRoomDTO.setGroupName(createRoomDTO.getName());
+	// jsonRoomDTO.setName("第" + roomIndex + "組");
+	// jsonRoomDTO.setMembers(members);
+	// // Jackson ObjectMapper to convert requestBody to JSON
+	// String json;
+	// try {
+	// json = new ObjectMapper().writeValueAsString(jsonRoomDTO);
+	// HttpEntity<String> entity = new HttpEntity<>(json, headers);
+	// String response = restTemplate
+	// .postForEntity("http://" + json_server_domain + "/rooms", entity,
+	// String.class).getBody();
+	// logger.debug("response:" + response);
+	// } catch (JsonProcessingException e) {
+	//
+	// }
+	// });
+	// } catch (Exception e) {
+	// // TODO Auto-generated catch block
+	// e.printStackTrace();
+	// }
+	//
+	// ReturnDTO returnDTO = new ReturnDTO();
+	// returnDTO.setCode(0);
+	// returnDTO.setMessage("success");
+	//
+	// return returnDTO;
+	// }
+
+	@RequestMapping(path = "/suspendRoom", method = RequestMethod.POST)
+	public ReturnDTO suspendRoom(@RequestBody SuspendRoomDTO suspendRoomDTO) {
+		logger.debug("[suspendRoom] getClassName={} ,getGroupName={}", suspendRoomDTO.getClassName(),
+				suspendRoomDTO.getGroupName());
+		try {
+			List<JsonRoomDTO> roomList=restTemplate.exchange(
+					"http://" + json_server_domain + "/rooms?className=" + suspendRoomDTO.getClassName()+"&groupName="+suspendRoomDTO.getGroupName(),
+							HttpMethod.GET, null, new ParameterizedTypeReference<List<JsonRoomDTO>>() {
+							}).getBody();
+			
+			
+			logger.debug("roomList={}", roomList);
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
+			
+			roomList.stream().forEach(room->{
+				room.setEndDate(LocalDate.now());
+				String json;
+				try {
+					json = new ObjectMapper().writeValueAsString(room);
+					HttpEntity<String> entity = new HttpEntity<>(json, headers);
+					String response =restTemplate.exchange("http://" + json_server_domain + "/rooms/"+room.getId(), HttpMethod.PUT, entity, String.class).getBody();
+					
+					logger.debug("response:" + response);
+				} catch (JsonProcessingException e) {
+
+				}
+				
+			});
+			
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		ReturnDTO returnDTO = new ReturnDTO();
+		returnDTO.setCode(0);
+		returnDTO.setMessage("success");
+
+		return returnDTO;
+	}
 
 	@RequestMapping(path = "/createRoom", method = RequestMethod.POST)
 	public ReturnDTO createRoom(@RequestBody CreateRoomDTO createRoomDTO) {
 		logger.debug("[createRoomDTO] getClassName={} ,getGroupName={}", createRoomDTO.getClassName(),
 				createRoomDTO.getGroupName());
 		logger.debug("[createRoomDTO] rooms={}", createRoomDTO.getRooms());
+		logger.debug("[createRoomDTO] startDate={},endDate={}", createRoomDTO.getStartDate(),
+				createRoomDTO.getEndDate());
 		try {
 			List<String> teacherList = restTemplate
 					.exchange("http://" + json_server_domain + "/users?className=" + createRoomDTO.getClassName(),
@@ -473,7 +527,7 @@ public class AuthServerApplication {
 							})
 					.getBody().stream().filter(o -> o.getType().equals(AccountType.teacher))
 					.map(o -> o.getStudentNumber()).collect(Collectors.toList());
-			logger.debug("teacherList={}",teacherList);
+			logger.debug("teacherList={}", teacherList);
 			createRoomDTO.getRooms().keySet().stream().forEach(roomIndex -> {
 				List<String> members = createRoomDTO.getRooms().get(roomIndex);
 				members.addAll(teacherList);
@@ -484,6 +538,8 @@ public class AuthServerApplication {
 				jsonRoomDTO.setClassName(createRoomDTO.getClassName());
 				jsonRoomDTO.setGroupName(createRoomDTO.getGroupName());
 				jsonRoomDTO.setName("第" + roomIndex + "組");
+				jsonRoomDTO.setStartDate(createRoomDTO.getStartDate());
+				jsonRoomDTO.setEndDate(createRoomDTO.getEndDate());
 				jsonRoomDTO.setMembers(members);
 				// Jackson ObjectMapper to convert requestBody to JSON
 				String json;
