@@ -24,6 +24,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -47,6 +48,7 @@ import net.ubn.td.cloud.auth.dto.ReturnRoomDTO;
 import net.ubn.td.cloud.auth.dto.ReturnUserDTO;
 import net.ubn.td.cloud.auth.dto.RoomDTO;
 import net.ubn.td.cloud.auth.dto.SuspendRoomDTO;
+import net.ubn.td.cloud.auth.dto.UpdateRoomAnnouncementDTO;
 import net.ubn.td.cloud.auth.dto.UserDTO;
 import net.ubn.td.cloud.auth.dto.UserRoomDTO;
 import net.ubn.td.cloud.auth.dto.UserRoomHeaderDTO;
@@ -61,7 +63,7 @@ public class AuthServerApplication {
 
 	Logger logger = LoggerFactory.getLogger(AuthServerApplication.class);
 
-	private RestTemplate restTemplate = new RestTemplate();
+	private RestTemplate restTemplate = new RestTemplate(new HttpComponentsClientHttpRequestFactory());
 
 	@Value("${jsonserver.domain}")
 	private String json_server_domain;
@@ -112,6 +114,7 @@ public class AuthServerApplication {
 		returnDTO.setGroupName(jsonRoomDTO.getGroupName());
 		returnDTO.setName(jsonRoomDTO.getName());
 		returnDTO.setMembers(new ArrayList<UserDTO>());
+		returnDTO.setAnnouncement(jsonRoomDTO.getAnnouncement());
 
 		String connectedStudentNumber = "studentNumber=" + String.join("&studentNumber=", jsonRoomDTO.getMembers());
 		List<JsonAccountDTO> accountDTOList = restTemplate
@@ -337,7 +340,42 @@ public class AuthServerApplication {
 		logger.debug("getRoomHeader({}) result:{}", className, lst);
 		return returnList;
 	}
+	
+	
+	@RequestMapping(path = "/updateRoomAnnouncement/{roomId}", method = RequestMethod.POST)
+	public ReturnDTO updateRoomAnnouncement(@PathVariable("roomId") String roomId, @RequestBody UpdateRoomAnnouncementDTO announcementDTO){
+		logger.debug("[updateRoomAnnouncement] roomId={},announcement={}", roomId,announcementDTO.getAnnouncement());
+		
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
+		
+		
+		try {
+			String url="http://" + json_server_domain + "/rooms/"+roomId;
+			logger.debug("[updateRoomAnnouncement] url={}", url);
+			JsonRoomDTO jsonRoomDTO=restTemplate.getForEntity(url, JsonRoomDTO.class).getBody();
+			
+			jsonRoomDTO.setAnnouncement(announcementDTO.getAnnouncement());
+			
+			String json = new ObjectMapper().writeValueAsString(jsonRoomDTO);
+			HttpEntity<String> entity = new HttpEntity<>(json, headers);
+			String response = restTemplate.exchange(url, HttpMethod.PUT, entity, String.class).getBody();
+			logger.debug("response:" + response);
+			
 
+			ReturnDTO returnDTO=new ReturnDTO();
+			returnDTO.setCode(0);
+			returnDTO.setMessage("success");
+			return returnDTO;
+		} catch (Exception e) {
+			logger.error(e.getMessage(),e);
+			ReturnDTO returnDTO=new ReturnDTO();
+			returnDTO.setCode(-1);
+			returnDTO.setMessage(e.getMessage());
+			return returnDTO;
+		}
+	}
+	
 	@RequestMapping("/getRoomData/{className}")
 	public List<UserRoomDTO> getRoomData(@PathVariable(value = "className") String className) {
 

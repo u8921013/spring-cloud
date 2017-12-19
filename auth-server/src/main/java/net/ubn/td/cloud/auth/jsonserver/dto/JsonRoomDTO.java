@@ -11,6 +11,7 @@ public class JsonRoomDTO {
 	private String groupName;
 	private String name;
 	private String className;
+	private String announcement;
 	private List<String> members;
 	// @DateTimeFormat(pattern="yyyy-MM-dd")
 	@JsonDeserialize(using = LocalDateDeserializer.class)
@@ -76,6 +77,14 @@ public class JsonRoomDTO {
 
 	public void setEndDate(LocalDate endDate) {
 		this.endDate = endDate;
+	}
+	
+	public String getAnnouncement() {
+		return announcement;
+	}
+
+	public void setAnnouncement(String announcement) {
+		this.announcement = announcement;
 	}
 
 	@Override

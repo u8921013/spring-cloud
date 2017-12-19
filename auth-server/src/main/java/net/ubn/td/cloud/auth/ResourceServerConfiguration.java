@@ -44,6 +44,7 @@ public class ResourceServerConfiguration extends ResourceServerConfigurerAdapter
          .antMatchers("/createClassmate")
          .antMatchers("/updateClassmate")
          .antMatchers("/deleteClassmate/**")
+         .antMatchers("/updateRoomAnnouncement/**")
          .and()
          .authorizeRequests()
          .antMatchers("/me").access("#oauth2.hasScope('read')");

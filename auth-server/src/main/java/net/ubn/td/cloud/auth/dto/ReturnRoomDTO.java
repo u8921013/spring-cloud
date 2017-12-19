@@ -14,6 +14,7 @@ public class ReturnRoomDTO extends RoomDTO{
 	@JsonInclude(JsonInclude.Include.NON_NULL) 
 	private List<UserDTO> members;
 	
+	private String announcement;
 	
 	public List<UserDTO> getMembers() {
 		return members;
@@ -22,4 +23,14 @@ public class ReturnRoomDTO extends RoomDTO{
 	public void setMembers(List<UserDTO> members) {
 		this.members = members;
 	}
+
+	public String getAnnouncement() {
+		return announcement;
+	}
+
+	public void setAnnouncement(String announcement) {
+		this.announcement = announcement;
+	}
+	
+	
 }
