@@ -416,7 +416,6 @@ public class AuthServerApplication {
 
 	@RequestMapping("/getUserInfo")
 	public ReturnUserDTO getLoginUserData(Principal user) {
-		logger.debug("call getUserInfo");
 		ReturnUserDTO returnDTO = new ReturnUserDTO();
 
 		List<JsonAccountDTO> accountDTOList = restTemplate
@@ -427,6 +426,7 @@ public class AuthServerApplication {
 		JsonAccountDTO accountDTO = accountDTOList.get(0);
 		returnDTO.setStudentNumber(accountDTO.getStudentNumber());
 		returnDTO.setClassname(accountDTO.getClassName());
+		returnDTO.setName(accountDTO.getName());
 		returnDTO.setImg(accountDTO.getImg());
 
 		// 同學資料
