@@ -436,7 +436,7 @@ public class AuthServerApplication {
 						})
 				.getBody();
 		returnDTO.setFriends(new ArrayList<FriendDTO>());
-
+		classmateDTOList.stream().map(JsonAccountDTO::getName).forEach(System.out::println);
 //		List<FriendDTO> friendsDTOList = classmateDTOList.stream()
 //				.filter(classmate -> !user.getName().equals(classmate.getStudentNumber())).map(classmate -> {
 //					FriendDTO dto = new FriendDTO();
@@ -450,8 +450,9 @@ public class AuthServerApplication {
         List<FriendDTO> friendsDTOList =null;
         switch (accountDTO.getType()){
             case teacher:
+            	System.out.println("1");
                 friendsDTOList = classmateDTOList.stream()
-                        .filter(classmate -> !accountDTO.getName().equals(classmate.getStudentNumber())).map(classmate -> {
+                        .filter(classmate -> !accountDTO.getStudentNumber().equals(classmate.getStudentNumber())).map(classmate -> {
                             FriendDTO dto = new FriendDTO();
                             dto.setStudentNumber(classmate.getStudentNumber());
                             dto.setName(classmate.getName());
@@ -461,7 +462,7 @@ public class AuthServerApplication {
                 break;
             case student:
                 friendsDTOList = classmateDTOList.stream()
-                        .filter(classmate -> !accountDTO.getName().equals(classmate.getStudentNumber())&&classmate.getType().equals(AccountType.teacher)).map(classmate -> {
+                        .filter(classmate -> !accountDTO.getStudentNumber().equals(classmate.getStudentNumber())&&classmate.getType().equals(AccountType.teacher)).map(classmate -> {
                             FriendDTO dto = new FriendDTO();
                             dto.setStudentNumber(classmate.getStudentNumber());
                             dto.setName(classmate.getName());
