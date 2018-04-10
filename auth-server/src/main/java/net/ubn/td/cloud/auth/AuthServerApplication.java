@@ -437,15 +437,41 @@ public class AuthServerApplication {
 				.getBody();
 		returnDTO.setFriends(new ArrayList<FriendDTO>());
 
-		List<FriendDTO> friendsDTOList = classmateDTOList.stream()
-				.filter(classmate -> !user.getName().equals(classmate.getStudentNumber())).map(classmate -> {
-					FriendDTO dto = new FriendDTO();
-					dto.setStudentNumber(classmate.getStudentNumber());
-					dto.setName(classmate.getName());
-					dto.setImg(classmate.getImg());
-					return dto;
-				}).collect(Collectors.toList());
-		returnDTO.setFriends(friendsDTOList);
+//		List<FriendDTO> friendsDTOList = classmateDTOList.stream()
+//				.filter(classmate -> !user.getName().equals(classmate.getStudentNumber())).map(classmate -> {
+//					FriendDTO dto = new FriendDTO();
+//					dto.setStudentNumber(classmate.getStudentNumber());
+//					dto.setName(classmate.getName());
+//					dto.setImg(classmate.getImg());
+//					return dto;
+//				}).collect(Collectors.toList());
+//		returnDTO.setFriends(friendsDTOList);
+		
+        List<FriendDTO> friendsDTOList =null;
+        switch (accountDTO.getType()){
+            case teacher:
+                friendsDTOList = classmateDTOList.stream()
+                        .filter(classmate -> !accountDTO.getName().equals(classmate.getStudentNumber())).map(classmate -> {
+                            FriendDTO dto = new FriendDTO();
+                            dto.setStudentNumber(classmate.getStudentNumber());
+                            dto.setName(classmate.getName());
+                            dto.setImg(classmate.getImg());
+                            return dto;
+                        }).collect(Collectors.toList());
+                break;
+            case student:
+                friendsDTOList = classmateDTOList.stream()
+                        .filter(classmate -> !accountDTO.getName().equals(classmate.getStudentNumber())&&classmate.getType().equals(AccountType.teacher)).map(classmate -> {
+                            FriendDTO dto = new FriendDTO();
+                            dto.setStudentNumber(classmate.getStudentNumber());
+                            dto.setName(classmate.getName());
+                            dto.setImg(classmate.getImg());
+                            return dto;
+                        }).collect(Collectors.toList());
+                break;
+
+        }
+        returnDTO.setFriends(friendsDTOList);
 
 		// 個人清單
 		ResponseEntity<List<JsonRoomDTO>> roomDTOListResponse = restTemplate.exchange(

@@ -18,12 +18,10 @@ public class DBJsonFormat {
 		try {
 			String strDB=FileUtils.readFileToString(new File("/Users/Lendy/Downloads/studentList2.txt"),"UTF-8");
 			strDB=strDB.replaceAll("'", "\"");
-//			System.out.println("db="+strDB);
 			ObjectMapper mapper=new ObjectMapper();
-			DBJsonFormatDTO oldDTO=mapper.readValue(new File("/Users/Lendy/Desktop/20170814/readium-js-viewer/dist/db.json"), DBJsonFormatDTO.class);
+			//			DBJsonFormatDTO oldDTO=mapper.readValue(new File("/Users/Lendy/Desktop/20170814/readium-js-viewer/dist/db.json"), DBJsonFormatDTO.class);
 			List<JsonAccountDTO> myObjects = mapper.readValue(strDB, new TypeReference<List<JsonAccountDTO>>(){});
 //			System.out.println("myObjects:"+myObjects);
-			
 			List<JsonAccountDTO> newObjectList=myObjects.stream().map(orginAccountDTO->{
 				orginAccountDTO.setId(orginAccountDTO.getStudentNumber());
 				orginAccountDTO.setType(orginAccountDTO.getStudentNumber().startsWith("teacher")?AccountType.teacher:AccountType.student);
@@ -35,11 +33,12 @@ public class DBJsonFormat {
 			
 			DBJsonFormatDTO dbJsonDTO=new DBJsonFormatDTO();
 			dbJsonDTO.setUsers(newObjectList);
-			dbJsonDTO.setRooms(oldDTO.getRooms());
+			dbJsonDTO.setRooms(null);
 			mapper.writerWithDefaultPrettyPrinter().writeValue(new File("/Users/Lendy/Desktop/20170814/db.json"),dbJsonDTO);
 //			System.out.println(str);
 			
 		} catch (Exception e) {
+			e.printStackTrace();
 		}
 		
 	}
