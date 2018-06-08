@@ -1,15 +1,11 @@
 package net.ubn.td.cloud.auth;
 
-import java.io.File;
-import java.io.IOException;
-import java.security.Principal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
-
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import net.ubn.td.cloud.auth.dto.*;
+import net.ubn.td.cloud.auth.jsonserver.dto.AccountType;
+import net.ubn.td.cloud.auth.jsonserver.dto.JsonAccountDTO;
+import net.ubn.td.cloud.auth.jsonserver.dto.JsonRoomDTO;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,43 +15,23 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.env.Environment;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
 import org.springframework.security.oauth2.provider.OAuth2Authentication;
 import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import net.ubn.td.cloud.auth.dto.BookInfo;
-import net.ubn.td.cloud.auth.dto.CreateRoomDTO;
-import net.ubn.td.cloud.auth.dto.FriendDTO;
-import net.ubn.td.cloud.auth.dto.RequestAccountDTO;
-import net.ubn.td.cloud.auth.dto.ReturnAccountDTO;
-import net.ubn.td.cloud.auth.dto.ReturnDTO;
-import net.ubn.td.cloud.auth.dto.ReturnFriendDTO;
-import net.ubn.td.cloud.auth.dto.ReturnRoomDTO;
-import net.ubn.td.cloud.auth.dto.ReturnUserDTO;
-import net.ubn.td.cloud.auth.dto.RoomDTO;
-import net.ubn.td.cloud.auth.dto.SuspendRoomDTO;
-import net.ubn.td.cloud.auth.dto.UpdateRoomAnnouncementDTO;
-import net.ubn.td.cloud.auth.dto.UserDTO;
-import net.ubn.td.cloud.auth.dto.UserRoomDTO;
-import net.ubn.td.cloud.auth.dto.UserRoomHeaderDTO;
-import net.ubn.td.cloud.auth.jsonserver.dto.AccountType;
-import net.ubn.td.cloud.auth.jsonserver.dto.JsonAccountDTO;
-import net.ubn.td.cloud.auth.jsonserver.dto.JsonRoomDTO;
+import java.io.File;
+import java.io.IOException;
+import java.security.Principal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @SpringBootApplication
 @EnableAuthorizationServer
@@ -144,11 +120,8 @@ public class AuthServerApplication {
 
 		String url="http://" + json_server_domain + "/users?studentNumber=" + userAuthentication.getName()+"&className="+userAuthentication.getClassName();
 		logger.info("request from url[{}]",url);
-
 		List<JsonAccountDTO> accountDTOList = restTemplate
-				.exchange(url, HttpMethod.GET,
-						null, new ParameterizedTypeReference<List<JsonAccountDTO>>() {
-						})
+				.exchange(url, HttpMethod.GET,null, new ParameterizedTypeReference<List<JsonAccountDTO>>() {})
 				.getBody();
 
 		JsonAccountDTO accountDTO = accountDTOList.get(0);
@@ -424,14 +397,12 @@ public class AuthServerApplication {
 
 	@RequestMapping("/getUserInfo")
 	public ReturnUserDTO getLoginUserData(Principal user) {
+		CustomUsernamePasswordAuthenticationToken userAuthentication=(CustomUsernamePasswordAuthenticationToken)((OAuth2Authentication)user).getUserAuthentication();
+
 		ReturnUserDTO returnDTO = new ReturnUserDTO();
 
-		List<JsonAccountDTO> accountDTOList = restTemplate
-				.exchange("http://" + json_server_domain + "/users?studentNumber=" + user.getName(), HttpMethod.GET,
-						null, new ParameterizedTypeReference<List<JsonAccountDTO>>() {
-						})
-				.getBody();
-		JsonAccountDTO accountDTO = accountDTOList.get(0);
+		JsonAccountDTO accountDTO = getAccountDTO(user);
+
 		returnDTO.setStudentNumber(accountDTO.getStudentNumber());
 		returnDTO.setClassname(accountDTO.getClassName());
 		returnDTO.setName(accountDTO.getName());
@@ -444,16 +415,6 @@ public class AuthServerApplication {
 						})
 				.getBody();
 		returnDTO.setFriends(new ArrayList<FriendDTO>());
-		classmateDTOList.stream().map(JsonAccountDTO::getName).forEach(System.out::println);
-//		List<FriendDTO> friendsDTOList = classmateDTOList.stream()
-//				.filter(classmate -> !user.getName().equals(classmate.getStudentNumber())).map(classmate -> {
-//					FriendDTO dto = new FriendDTO();
-//					dto.setStudentNumber(classmate.getStudentNumber());
-//					dto.setName(classmate.getName());
-//					dto.setImg(classmate.getImg());
-//					return dto;
-//				}).collect(Collectors.toList());
-//		returnDTO.setFriends(friendsDTOList);
 		
         List<FriendDTO> friendsDTOList =null;
         switch (accountDTO.getType()){
@@ -476,7 +437,7 @@ public class AuthServerApplication {
                             dto.setName(classmate.getName());
                             dto.setImg(classmate.getImg());
                             return dto;
-                        }).collect(Collectors.toList());
+						}).collect(Collectors.toList());
                 break;
 
         }
@@ -488,61 +449,20 @@ public class AuthServerApplication {
 				new ParameterizedTypeReference<List<JsonRoomDTO>>() {
 				});
 		List<JsonRoomDTO> rooms = roomDTOListResponse.getBody();
-		List<RoomDTO> roomList = rooms.stream().filter(room->room.getEndDate()==null)
-				.map(jsonRoomDTO -> {
-			RoomDTO roomDTO = new RoomDTO();
-			roomDTO.setId(jsonRoomDTO.getId());
-			roomDTO.setGroupName(jsonRoomDTO.getGroupName());
-			roomDTO.setName(jsonRoomDTO.getName());
-			return roomDTO;
-		}).collect(Collectors.toList());
+		List<RoomDTO> roomList = rooms.stream()
+						.filter(room->room.getClassName().equals(userAuthentication.getClassName()))  //增加要判斷班級
+						.filter(room->room.getEndDate()==null)
+						.map(jsonRoomDTO -> {
+							RoomDTO roomDTO = new RoomDTO();roomDTO.setId(jsonRoomDTO.getId());
+							roomDTO.setGroupName(jsonRoomDTO.getGroupName());
+							roomDTO.setName(jsonRoomDTO.getName());
+							return roomDTO;
+						}).collect(Collectors.toList());
 		returnDTO.setRooms(roomList);
 		return returnDTO;
 	}
 
-	// @RequestMapping(path = "/createPerson", method = RequestMethod.POST)
-	// public ReturnDTO createPerson(Principal user, @RequestBody CreateRoomDTO
-	// createRoomDTO) {
-	// logger.debug("[createRoomDTO] name={}", createRoomDTO.getName());
-	// logger.debug("[createRoomDTO] rooms={}", createRoomDTO.getRooms());
-	// JsonAccountDTO jsonAccountDTO = getAccountDTO(user);
-	// try {
-	// createRoomDTO.getRooms().keySet().stream().forEach(roomIndex -> {
-	// List<String> members = createRoomDTO.getRooms().get(roomIndex);
-	// System.out.println("member=" + members);
-	//
-	// HttpHeaders headers = new HttpHeaders();
-	// headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
-	//
-	// JsonRoomDTO jsonRoomDTO = new JsonRoomDTO();
-	// jsonRoomDTO.setClassName(jsonAccountDTO.getClassName());
-	// jsonRoomDTO.setGroupName(createRoomDTO.getName());
-	// jsonRoomDTO.setName("第" + roomIndex + "組");
-	// jsonRoomDTO.setMembers(members);
-	// // Jackson ObjectMapper to convert requestBody to JSON
-	// String json;
-	// try {
-	// json = new ObjectMapper().writeValueAsString(jsonRoomDTO);
-	// HttpEntity<String> entity = new HttpEntity<>(json, headers);
-	// String response = restTemplate
-	// .postForEntity("http://" + json_server_domain + "/rooms", entity,
-	// String.class).getBody();
-	// logger.debug("response:" + response);
-	// } catch (JsonProcessingException e) {
-	//
-	// }
-	// });
-	// } catch (Exception e) {
-	// // TODO Auto-generated catch block
-	// e.printStackTrace();
-	// }
-	//
-	// ReturnDTO returnDTO = new ReturnDTO();
-	// returnDTO.setCode(0);
-	// returnDTO.setMessage("success");
-	//
-	// return returnDTO;
-	// }
+
 
 	@RequestMapping(path = "/suspendRoom", method = RequestMethod.POST)
 	public ReturnDTO suspendRoom(@RequestBody SuspendRoomDTO suspendRoomDTO) {
@@ -637,111 +557,4 @@ public class AuthServerApplication {
 
 		return returnDTO;
 	}
-
-	@RequestMapping("/bookInfo/{classname}")
-	public List<BookInfo> getUserInfo(@PathVariable(value = "classname") String classname) {
-		System.out.println("classname=" + classname);
-		List<BookInfo> reusltList = new ArrayList<BookInfo>();
-
-		BookInfo bookInfo1 = new BookInfo();
-		bookInfo1.setId("BOK08");
-		bookInfo1.setName("Ch3-物件導向的程式設計思維");
-		bookInfo1.setUrl(
-				"http://120.125.83.32:8080/cloud-reader/index.html?epub=..%2Fepub_content%2FBOK08&bookNo=BOK08");
-		reusltList.add(bookInfo1);
-
-		BookInfo bookInfo2 = new BookInfo();
-		bookInfo2.setId("BOK09");
-		bookInfo2.setName("Ch6-認識參考型別與操作物件");
-		bookInfo2.setUrl(
-				"http://120.125.83.32:8080/cloud-reader/index.html?epub=..%2Fepub_content%2FBOK09&bookNo=BOK09");
-		reusltList.add(bookInfo2);
-
-		BookInfo bookInfo3 = new BookInfo();
-		bookInfo3.setId("BOK10");
-		bookInfo3.setName("Ch6-測驗一");
-		bookInfo3.setUrl(
-				"http://120.125.83.32:8080/cloud-reader/index.html?epub=..%2Fepub_content%2FBOK10&bookNo=BOK10");
-		reusltList.add(bookInfo3);
-
-		BookInfo bookInfo4 = new BookInfo();
-		bookInfo4.setId("BOK11");
-		bookInfo4.setName("Ch6-測驗二");
-		bookInfo4.setUrl(
-				"http://120.125.83.32:8080/cloud-reader/index.html?epub=..%2Fepub_content%2FBOK11&bookNo=BOK11");
-		reusltList.add(bookInfo4);
-
-		BookInfo bookInfo5 = new BookInfo();
-		bookInfo5.setId("BOK12");
-		bookInfo5.setName("Ch10-使用 Method 和 Method Overloading");
-		bookInfo5.setUrl(
-				"http://120.125.83.32:8080/cloud-reader/index.html?epub=..%2Fepub_content%2FBOK12&bookNo=BOK12");
-		reusltList.add(bookInfo5);
-
-		BookInfo bookInfo6 = new BookInfo();
-		bookInfo6.setId("BOK13");
-		bookInfo6.setName("Ch10-測驗一");
-		bookInfo6.setUrl(
-				"http://120.125.83.32:8080/cloud-reader/index.html?epub=..%2Fepub_content%2FBOK13&bookNo=BOK13");
-		reusltList.add(bookInfo6);
-
-		BookInfo bookInfo7 = new BookInfo();
-		bookInfo7.setId("BOK14");
-		bookInfo7.setName("Ch10-測驗二<");
-		bookInfo7.setUrl(
-				"http://120.125.83.32:8080/cloud-reader/index.html?epub=..%2Fepub_content%2FBOK14&bookNo=BOK14");
-		reusltList.add(bookInfo7);
-
-		BookInfo bookInfo8 = new BookInfo();
-		bookInfo8.setId("BOK15");
-		bookInfo8.setName("Ch11-使用封裝和建構子");
-		bookInfo8.setUrl(
-				"http://120.125.83.32:8080/cloud-reader/index.html?epub=..%2Fepub_content%2FBOK15&bookNo=BOK15");
-		reusltList.add(bookInfo8);
-
-		BookInfo bookInfo9 = new BookInfo();
-		bookInfo9.setId("BOK16");
-		bookInfo9.setName("Ch11-測驗一");
-		bookInfo9.setUrl(
-				"http://120.125.83.32:8080/cloud-reader/index.html?epub=..%2Fepub_content%2FBOK16&bookNo=BOK16");
-		reusltList.add(bookInfo9);
-
-		BookInfo bookInfo10 = new BookInfo();
-		bookInfo10.setId("BOK17");
-		bookInfo10.setName("Ch11-測驗二");
-		bookInfo10.setUrl(
-				"http://120.125.83.32:8080/cloud-reader/index.html?epub=..%2Fepub_content%2FBOK17&bookNo=BOK17");
-		reusltList.add(bookInfo10);
-
-		BookInfo bookInfo18 = new BookInfo();
-		bookInfo18.setId("BOK18");
-		bookInfo18.setName("CH12-進階物件導向程式設計");
-		bookInfo18.setUrl(
-				"http://120.125.83.32:8080/cloud-reader/index.html?epub=..%2Fepub_content%2FBOK18&bookNo=BOK18");
-		reusltList.add(bookInfo18);
-
-		BookInfo bookInfo19 = new BookInfo();
-		bookInfo19.setId("BOK19");
-		bookInfo19.setName("CH12-測驗");
-		bookInfo19.setUrl(
-				"http://120.125.83.32:8080/cloud-reader/index.html?epub=..%2Fepub_content%2FBOK19&bookNo=BOK19");
-		reusltList.add(bookInfo19);
-
-		BookInfo bookInfo20 = new BookInfo();
-		bookInfo20.setId("BOK20");
-		bookInfo20.setName("Ch7-Java 集合架構與泛型");
-		bookInfo20.setUrl(
-				"http://120.125.83.32:8080/cloud-reader/index.html?epub=..%2Fepub_content%2FBOK20&bookNo=BOK20");
-		reusltList.add(bookInfo20);
-
-		BookInfo bookInfo21 = new BookInfo();
-		bookInfo21.setId("BOK21");
-		bookInfo21.setName("Ch13-使用JDBC建立資料庫連線");
-		bookInfo21.setUrl(
-				"http://120.125.83.32:8080/cloud-reader/index.html?epub=..%2Fepub_content%2FBOK21&bookNo=BOK21");
-		reusltList.add(bookInfo21);
-
-		return reusltList;
-	}
-
 }
