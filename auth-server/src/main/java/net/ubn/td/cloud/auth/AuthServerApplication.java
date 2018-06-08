@@ -26,6 +26,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
+import org.springframework.security.oauth2.provider.OAuth2Authentication;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -89,11 +90,16 @@ public class AuthServerApplication {
 	 */
 	@RequestMapping("/me")
 	public Principal getCurrentLoggedInUser(Principal user) {
+		logger.debug("class:"+user.getClass());
+		CustomUsernamePasswordAuthenticationToken userAuthentication=(CustomUsernamePasswordAuthenticationToken)((OAuth2Authentication)user).getUserAuthentication();
+		logger.debug("className:"+userAuthentication.getClassName());
+		logger.debug("accountType:{}",userAuthentication.getType().name());
 		return user;
 	}
 
 	@RequestMapping("/userInfo")
 	public ReturnAccountDTO getUserInfo(Principal user) {
+
 		JsonAccountDTO jsonAccountDTO = getAccountDTO(user);
 
 		ReturnAccountDTO returnDTO = new ReturnAccountDTO();
@@ -134,10 +140,13 @@ public class AuthServerApplication {
 	}
 
 	private JsonAccountDTO getAccountDTO(Principal user) {
-		logger.info("request accountDTO :{}",
-				"http://" + json_server_domain + "/users?studentNumber=" + user.getName());
+		CustomUsernamePasswordAuthenticationToken userAuthentication=(CustomUsernamePasswordAuthenticationToken)((OAuth2Authentication)user).getUserAuthentication();
+
+		String url="http://" + json_server_domain + "/users?studentNumber=" + userAuthentication.getName()+"&className="+userAuthentication.getClassName();
+		logger.info("request from url[{}]",url);
+
 		List<JsonAccountDTO> accountDTOList = restTemplate
-				.exchange("http://" + json_server_domain + "/users?studentNumber=" + user.getName(), HttpMethod.GET,
+				.exchange(url, HttpMethod.GET,
 						null, new ParameterizedTypeReference<List<JsonAccountDTO>>() {
 						})
 				.getBody();
@@ -149,7 +158,6 @@ public class AuthServerApplication {
 	@RequestMapping(path = "/listClassmates/{className}", method = RequestMethod.GET)
 	public List<ReturnAccountDTO> listClassmates(@PathVariable(value = "className") String className) {
 
-		// JsonAccountDTO jsonAccountDTO = getAccountDTO(user);
 		List<JsonAccountDTO> classmateDTOList = restTemplate
 				.exchange("http://" + json_server_domain + "/users?className=" + className, HttpMethod.GET, null,
 						new ParameterizedTypeReference<List<JsonAccountDTO>>() {

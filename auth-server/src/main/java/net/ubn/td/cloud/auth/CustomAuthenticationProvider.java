@@ -42,11 +42,10 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
 				});
 		List<JsonAccountDTO> accountDTOList = rateResponse.getBody();
 
-
-		UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken= accountDTOList.stream()
+        CustomUsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken= accountDTOList.stream()
 				.filter(dto->dto.getPassword().equals(password))
 				.findFirst()
-				.map(accountDTO->new UsernamePasswordAuthenticationToken(accountDTO.getStudentNumber(), accountDTO.getPassword(), new ArrayList<>()))
+				.map(accountDTO->new CustomUsernamePasswordAuthenticationToken(accountDTO.getStudentNumber(), accountDTO.getPassword(),accountDTO.getClassName(),accountDTO.getType(),new ArrayList<>()))
 				.orElse(null);
 		return  usernamePasswordAuthenticationToken;
 //		if (accountDTO.getPassword().equals(password)) {
