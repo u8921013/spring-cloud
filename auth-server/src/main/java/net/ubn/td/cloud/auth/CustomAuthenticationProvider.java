@@ -34,18 +34,26 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
 		String name = authentication.getName();
 		String password = authentication.getCredentials().toString();
 		logger.debug("name:{} password:{}", name, password);
-//		System.out.println("name:" + name + "password:" + password);
+		System.out.println("name:" + name + "password:" + password);
+		System.out.println("json_server_domain:"+json_server_domain);
 		ResponseEntity<List<JsonAccountDTO>> rateResponse = restTemplate.exchange(
 				"http://"+json_server_domain+"/users?studentNumber=" + name, HttpMethod.GET, null,
 				new ParameterizedTypeReference<List<JsonAccountDTO>>() {
 				});
 		List<JsonAccountDTO> accountDTOList = rateResponse.getBody();
-		JsonAccountDTO accountDTO = accountDTOList.get(0);
-		if (accountDTO.getPassword().equals(password)) {
-			return new UsernamePasswordAuthenticationToken(name, password, new ArrayList<>());
-		} else {
-			return null;
-		}
+
+
+		UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken= accountDTOList.stream()
+				.filter(dto->dto.getPassword().equals(password))
+				.findFirst()
+				.map(accountDTO->new UsernamePasswordAuthenticationToken(accountDTO.getStudentNumber(), accountDTO.getPassword(), new ArrayList<>()))
+				.orElse(null);
+		return  usernamePasswordAuthenticationToken;
+//		if (accountDTO.getPassword().equals(password)) {
+//			return new UsernamePasswordAuthenticationToken(name, password, new ArrayList<>());
+//		} else {
+//			return null;
+//		}
 	}
 
 	@Override
